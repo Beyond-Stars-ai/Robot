@@ -180,10 +180,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   {
     HAL_IncTick();
   }
-  if (htim->Instance == TIM1)
-  {
-    vTaskDelay(200);
-  }
   /* USER CODE BEGIN Callback 1 */
   
   /* USER CODE END Callback 1 */
