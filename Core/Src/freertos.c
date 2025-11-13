@@ -19,12 +19,10 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
-#include "cmsis_os.h"
-#include "main.h"
-#include "stm32f4xx_hal_tim.h"
 #include "task.h"
+#include "main.h"
+#include "cmsis_os.h"
 #include "tim.h"
-
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -53,16 +51,16 @@
 /* Definitions for LEDTask */
 osThreadId_t LEDTaskHandle;
 const osThreadAttr_t LEDTask_attributes = {
-    .name = "LEDTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "LEDTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for BuzzerTask */
 osThreadId_t BuzzerTaskHandle;
 const osThreadAttr_t BuzzerTask_attributes = {
-    .name = "BuzzerTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+  .name = "BuzzerTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -76,10 +74,10 @@ void StartBuzzerTask(void *argument);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
@@ -115,6 +113,7 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
   /* USER CODE END RTOS_EVENTS */
+
 }
 
 /* USER CODE BEGIN Header_StartLEDTask */
@@ -124,7 +123,8 @@ void MX_FREERTOS_Init(void) {
  * @retval None
  */
 /* USER CODE END Header_StartLEDTask */
-void StartLEDTask(void *argument) {
+void StartLEDTask(void *argument)
+{
   /* USER CODE BEGIN StartLEDTask */
   /* Infinite loop */
   for (;;) {
@@ -151,12 +151,13 @@ void StartLEDTask(void *argument) {
  * @retval None
  */
 /* USER CODE END Header_StartBuzzerTask */
-void StartBuzzerTask(void *argument) {
+void StartBuzzerTask(void *argument)
+{
   /* USER CODE BEGIN StartBuzzerTask */
-  int pwm = 0;
+  int pwm = 10000;
   int psc = 0;
   int MAX_BUZZER_PWM = 20000 ;
-  int MIN_BUZZER_PWM =10000 ;
+  int MIN_BUZZER_PWM = 10000 ;
   int MAX_PSC =1000 ;
   /* Infinite loop */
   for (;;) {
@@ -166,6 +167,7 @@ void StartBuzzerTask(void *argument) {
     if (psc > MAX_PSC) {
       psc = 0;
     }
+
     __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_3, pwm);
     __HAL_TIM_SET_PRESCALER(&htim4, psc);
      
@@ -178,3 +180,4 @@ void StartBuzzerTask(void *argument) {
 /* USER CODE BEGIN Application */
 
 /* USER CODE END Application */
+
