@@ -2,5 +2,6 @@
   "device": "STM32F407IGH6",
   "toolchain": "GCC",
   "core": "Cortex-M4",
-  "order": 0
+  "order": 0,
+  "tz": "TZ-disabled"
 }

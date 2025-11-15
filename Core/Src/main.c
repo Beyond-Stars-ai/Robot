@@ -96,7 +96,9 @@ int main(void)
   MX_TIM4_Init();
   MX_USART3_UART_Init();
   MX_CAN1_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  __HAL_UART_CLEAR_FLAG(&huart1, UART_FLAG_TC);
   HAL_TIM_Base_Start(&htim4);
   /* USER CODE END 2 */
 

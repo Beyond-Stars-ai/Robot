@@ -19,14 +19,13 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
-#include "cmsis_os.h"
-#include "main.h"
 #include "task.h"
-
+#include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,23 +51,30 @@ uint8_t key_rising_falling_flag;
 /* Definitions for LEDTask */
 osThreadId_t LEDTaskHandle;
 const osThreadAttr_t LEDTask_attributes = {
-    .name = "LEDTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "LEDTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for BuzzerTask */
 osThreadId_t BuzzerTaskHandle;
 const osThreadAttr_t BuzzerTask_attributes = {
-    .name = "BuzzerTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+  .name = "BuzzerTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for KEYTask */
 osThreadId_t KEYTaskHandle;
 const osThreadAttr_t KEYTask_attributes = {
-    .name = "KEYTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+  .name = "KEYTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for PrintTask */
+osThreadId_t PrintTaskHandle;
+const osThreadAttr_t PrintTask_attributes = {
+  .name = "PrintTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -79,14 +85,15 @@ const osThreadAttr_t KEYTask_attributes = {
 void StartLEDTask(void *argument);
 void StartBuzzerTask(void *argument);
 void StartKEYTask(void *argument);
+void StartPrintTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
@@ -118,6 +125,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of KEYTask */
   KEYTaskHandle = osThreadNew(StartKEYTask, NULL, &KEYTask_attributes);
 
+  /* creation of PrintTask */
+  PrintTaskHandle = osThreadNew(StartPrintTask, NULL, &PrintTask_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -125,6 +135,7 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
   /* USER CODE END RTOS_EVENTS */
+
 }
 
 /* USER CODE BEGIN Header_StartLEDTask */
@@ -134,7 +145,8 @@ void MX_FREERTOS_Init(void) {
  * @retval None
  */
 /* USER CODE END Header_StartLEDTask */
-void StartLEDTask(void *argument) {
+void StartLEDTask(void *argument)
+{
   /* USER CODE BEGIN StartLEDTask */
   /* Infinite loop */
   for (;;) {
@@ -161,7 +173,8 @@ void StartLEDTask(void *argument) {
  * @retval None
  */
 /* USER CODE END Header_StartBuzzerTask */
-void StartBuzzerTask(void *argument) {
+void StartBuzzerTask(void *argument)
+{
   /* USER CODE BEGIN StartBuzzerTask */
   int MAX_BUZZER_PWM = 20000;
   int MIN_BUZZER_PWM = 10000;
@@ -192,7 +205,8 @@ void StartBuzzerTask(void *argument) {
  * @retval None
  */
 /* USER CODE END Header_StartKEYTask */
-void StartKEYTask(void *argument) {
+void StartKEYTask(void *argument)
+{
   /* USER CODE BEGIN StartKEYTask */
   /* Infinite loop */
   for (;;) {
@@ -223,6 +237,27 @@ void StartKEYTask(void *argument) {
   /* USER CODE END StartKEYTask */
 }
 
+/* USER CODE BEGIN Header_StartPrintTask */
+/**
+* @brief Function implementing the PrintTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartPrintTask */
+void StartPrintTask(void *argument)
+{
+  /* USER CODE BEGIN StartPrintTask */
+  int count = 0;
+  /* Infinite loop */
+  for(;;)
+  {
+    printf("Hello World!\r\n"); // 循环输出字符串
+    printf("Count: %d\r\n", count++); // 循环输出变量
+    osDelay(1000);
+  }
+  /* USER CODE END StartPrintTask */
+}
+
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
@@ -233,4 +268,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     }
   }
 }
+
 /* USER CODE END Application */
+
