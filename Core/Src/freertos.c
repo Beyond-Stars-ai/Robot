@@ -19,9 +19,10 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
-#include "task.h"
-#include "main.h"
 #include "cmsis_os.h"
+#include "main.h"
+#include "task.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -30,7 +31,8 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+uint8_t key_exit_flag = 0;
+uint8_t key_rising_falling_flag;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -50,16 +52,23 @@
 /* Definitions for LEDTask */
 osThreadId_t LEDTaskHandle;
 const osThreadAttr_t LEDTask_attributes = {
-  .name = "LEDTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+    .name = "LEDTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
 };
 /* Definitions for BuzzerTask */
 osThreadId_t BuzzerTaskHandle;
 const osThreadAttr_t BuzzerTask_attributes = {
-  .name = "BuzzerTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+    .name = "BuzzerTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityLow,
+};
+/* Definitions for KEYTask */
+osThreadId_t KEYTaskHandle;
+const osThreadAttr_t KEYTask_attributes = {
+    .name = "KEYTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityLow,
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,14 +78,15 @@ const osThreadAttr_t BuzzerTask_attributes = {
 
 void StartLEDTask(void *argument);
 void StartBuzzerTask(void *argument);
+void StartKEYTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
-  * @brief  FreeRTOS initialization
-  * @param  None
-  * @retval None
-  */
+ * @brief  FreeRTOS initialization
+ * @param  None
+ * @retval None
+ */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
@@ -105,6 +115,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of BuzzerTask */
   BuzzerTaskHandle = osThreadNew(StartBuzzerTask, NULL, &BuzzerTask_attributes);
 
+  /* creation of KEYTask */
+  KEYTaskHandle = osThreadNew(StartKEYTask, NULL, &KEYTask_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -112,7 +125,6 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
   /* USER CODE END RTOS_EVENTS */
-
 }
 
 /* USER CODE BEGIN Header_StartLEDTask */
@@ -122,8 +134,7 @@ void MX_FREERTOS_Init(void) {
  * @retval None
  */
 /* USER CODE END Header_StartLEDTask */
-void StartLEDTask(void *argument)
-{
+void StartLEDTask(void *argument) {
   /* USER CODE BEGIN StartLEDTask */
   /* Infinite loop */
   for (;;) {
@@ -150,14 +161,13 @@ void StartLEDTask(void *argument)
  * @retval None
  */
 /* USER CODE END Header_StartBuzzerTask */
-void StartBuzzerTask(void *argument)
-{
+void StartBuzzerTask(void *argument) {
   /* USER CODE BEGIN StartBuzzerTask */
-  int pwm = 10000;
+  int MAX_BUZZER_PWM = 20000;
+  int MIN_BUZZER_PWM = 10000;
+  int MAX_PSC = 1000;
+  int pwm = MIN_BUZZER_PWM;
   int psc = 0;
-  int MAX_BUZZER_PWM = 20000 ;
-  int MIN_BUZZER_PWM = 10000 ;
-  int MAX_PSC =1000 ;
   /* Infinite loop */
   for (;;) {
     if (pwm > MAX_BUZZER_PWM) {
@@ -169,14 +179,58 @@ void StartBuzzerTask(void *argument)
 
     __HAL_TIM_SET_PRESCALER(&htim4, psc);
     __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_3, pwm);
-     
-    osDelay(250);
+
+    osDelay(25);
   }
   /* USER CODE END StartBuzzerTask */
 }
 
+/* USER CODE BEGIN Header_StartKEYTask */
+/**
+ * @brief Function implementing the KEYTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartKEYTask */
+void StartKEYTask(void *argument) {
+  /* USER CODE BEGIN StartKEYTask */
+  /* Infinite loop */
+  for (;;) {
+    if (key_exit_flag == 1) {
+      key_exit_flag = 2;
+      if (key_rising_falling_flag == GPIO_PIN_RESET) {
+        // debouce
+        osDelay(20);
+        if (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin) == GPIO_PIN_RESET) {
+          HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
+          key_exit_flag = 0;
+        } else {
+          key_exit_flag = 0;
+        }
+      } else if (key_rising_falling_flag == GPIO_PIN_SET) {
+        // debouce
+        osDelay(20);
+        if (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin) == GPIO_PIN_SET) {
+          HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_3);
+          key_exit_flag = 0;
+        } else {
+          key_exit_flag = 0;
+        }
+      }
+    }
+    osDelay(10);
+  }
+  /* USER CODE END StartKEYTask */
+}
+
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if (GPIO_Pin == KEY_Pin) {
+    if (key_exit_flag == 0) {
+      key_exit_flag = 1;
+      key_rising_falling_flag = HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin);
+    }
+  }
+}
 /* USER CODE END Application */
-
