@@ -14,7 +14,7 @@ virtualFolder:
 dependenceList: []
 outDir: build
 miscInfo:
-  uid: 5d1054d9d22d9264bfef808f1c5b80e4
+  uid: a8ec1816877b13fbb42112297e3a5bf3
 targets:
   Debug:
     cppPreprocessAttrs:
@@ -82,22 +82,7 @@ targets:
         otherCmds: ""
         proType: 1
         speed: 8000
-      OpenOCD:
-        baseAddr: "0x08000000"
-        bin: ""
-        interface: stlink
-        target: stm32f1x
-      STLink:
-        address: "0x08000000"
-        bin: ""
-        elFile: None
-        optionBytes: .eide/debug.st.option.bytes.ini
-        otherCmds: ""
-        proType: SWD
-        resetMode: default
-        runAfterProgram: true
-        speed: 4000
-    uploader: STLink
+    uploader: JLink
   Release:
     cppPreprocessAttrs:
       defineList:
