@@ -21,6 +21,21 @@
 #include "can.h"
 
 /* USER CODE BEGIN 0 */
+#include "main.h"
+
+/* 外部变量声明 */
+extern uint8_t CAN_CAN1DeviceNumber;
+extern uint8_t CAN_CAN2DeviceNumber; 
+extern uint8_t CAN_DeviceNumber;
+extern int8_t CAN_IDSelect;
+
+/* 电机ID定义 - 与原始代码保持一致 */
+#define GM6020_1        0x205
+#define GM6020_2        0x206  
+#define M3508_1         0x201
+#define M3508_2         0x202
+#define M2006_7         0x207
+#define CToC_MasterID1  0x189  // 板间通信ID，需要根据实际修改
 
 /* USER CODE END 0 */
 
@@ -55,7 +70,53 @@ void MX_CAN1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN CAN1_Init 2 */
+// 1. 创建过滤器配置结构体
+CAN_FilterTypeDef sFilterConfig;
 
+// 2. 设置过滤器编号（CAN1使用0-14）
+sFilterConfig.FilterBank = 0;
+
+// 3. 选择掩码模式（可以接收多个ID）
+sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+
+// 4. 选择32位模式
+sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+
+// 5. 设置基础ID（0x200 << 5 = 0x4000）
+sFilterConfig.FilterIdHigh = 0x0000;
+sFilterConfig.FilterIdLow = 0x0000;
+
+// 6. 设置掩码（0xFFE0 = 只检查高5位）
+// 这样0x200-0x20F都会被接收
+sFilterConfig.FilterMaskIdHigh = 0xFFE0;
+sFilterConfig.FilterMaskIdLow = 0x0000;
+
+// 7. 分配到FIFO0
+sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+
+// 8. 激活过滤器
+sFilterConfig.FilterActivation = ENABLE;
+
+// 9. 设置CAN1的过滤器范围
+sFilterConfig.SlaveStartFilterBank = 14;
+
+// 10. 应用过滤器配置
+if (HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig) != HAL_OK)
+{
+    Error_Handler();
+}
+
+// 11. 启动CAN1接收中断
+if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
+{
+    Error_Handler();
+}
+
+// 12. 启动CAN1
+if (HAL_CAN_Start(&hcan1) != HAL_OK)
+{
+    Error_Handler();
+}
   /* USER CODE END CAN1_Init 2 */
 
 }
@@ -71,11 +132,11 @@ void MX_CAN2_Init(void)
 
   /* USER CODE END CAN2_Init 1 */
   hcan2.Instance = CAN2;
-  hcan2.Init.Prescaler = 16;
+  hcan2.Init.Prescaler = 3;
   hcan2.Init.Mode = CAN_MODE_NORMAL;
   hcan2.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan2.Init.TimeSeg1 = CAN_BS1_1TQ;
-  hcan2.Init.TimeSeg2 = CAN_BS2_1TQ;
+  hcan2.Init.TimeSeg1 = CAN_BS1_10TQ;
+  hcan2.Init.TimeSeg2 = CAN_BS2_3TQ;
   hcan2.Init.TimeTriggeredMode = DISABLE;
   hcan2.Init.AutoBusOff = DISABLE;
   hcan2.Init.AutoWakeUp = DISABLE;
@@ -87,7 +148,53 @@ void MX_CAN2_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN CAN2_Init 2 */
+// 1. 创建第一个过滤器配置 - 用于GM6020_1 (Yaw轴)
+CAN_FilterTypeDef sFilterConfig_CAN2_Yaw;
+sFilterConfig_CAN2_Yaw.FilterBank = 15;           // CAN2使用15-27
+sFilterConfig_CAN2_Yaw.FilterMode = CAN_FILTERMODE_IDLIST;  // 精确匹配
+sFilterConfig_CAN2_Yaw.FilterScale = CAN_FILTERSCALE_32BIT;
+sFilterConfig_CAN2_Yaw.FilterIdHigh = (0x205 << 5);  // 0x205 = 517
+sFilterConfig_CAN2_Yaw.FilterIdLow = 0x0000;
+sFilterConfig_CAN2_Yaw.FilterMaskIdHigh = (0x205 << 5);  // 精确匹配
+sFilterConfig_CAN2_Yaw.FilterMaskIdLow = 0x0000;
+sFilterConfig_CAN2_Yaw.FilterFIFOAssignment = CAN_RX_FIFO1;
+sFilterConfig_CAN2_Yaw.FilterActivation = ENABLE;
+sFilterConfig_CAN2_Yaw.SlaveStartFilterBank = 14;
 
+if (HAL_CAN_ConfigFilter(&hcan2, &sFilterConfig_CAN2_Yaw) != HAL_OK)
+{
+    Error_Handler();
+}
+
+// 2. 创建第二个过滤器配置 - 用于板间通信
+CAN_FilterTypeDef sFilterConfig_CAN2_CToC;
+sFilterConfig_CAN2_CToC.FilterBank = 16;           // 下一个过滤器
+sFilterConfig_CAN2_CToC.FilterMode = CAN_FILTERMODE_IDLIST;  // 精确匹配
+sFilterConfig_CAN2_CToC.FilterScale = CAN_FILTERSCALE_32BIT;
+sFilterConfig_CAN2_CToC.FilterIdHigh = (0x189 << 5);  // 0x189 = 393
+sFilterConfig_CAN2_CToC.FilterIdLow = 0x0000;
+sFilterConfig_CAN2_CToC.FilterMaskIdHigh = (0x189 << 5);  // 精确匹配
+sFilterConfig_CAN2_CToC.FilterMaskIdLow = 0x0000;
+sFilterConfig_CAN2_CToC.FilterFIFOAssignment = CAN_RX_FIFO1;
+sFilterConfig_CAN2_CToC.FilterActivation = ENABLE;
+sFilterConfig_CAN2_CToC.SlaveStartFilterBank = 14;
+
+if (HAL_CAN_ConfigFilter(&hcan2, &sFilterConfig_CAN2_CToC) != HAL_OK)
+{
+    Error_Handler();
+}
+
+// 3. 启动CAN2接收中断
+if (HAL_CAN_ActivateNotification(&hcan2, CAN_IT_RX_FIFO1_MSG_PENDING) != HAL_OK)
+{
+    Error_Handler();
+}
+
+// 4. 启动CAN2
+if (HAL_CAN_Start(&hcan2) != HAL_OK)
+{
+    Error_Handler();
+}
   /* USER CODE END CAN2_Init 2 */
 
 }
