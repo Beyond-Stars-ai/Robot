@@ -21,15 +21,6 @@
 #include "can.h"
 
 /* USER CODE BEGIN 0 */
-#include "main.h"
-
-/* 外部变量声明 */
-extern uint8_t CAN_CAN1DeviceNumber;
-extern uint8_t CAN_CAN2DeviceNumber; 
-extern uint8_t CAN_DeviceNumber;
-extern int8_t CAN_IDSelect;
-
-/* 电机ID定义 - 在 can.h 中已定义，避免重复定义 */
 
 /* USER CODE END 0 */
 
@@ -64,55 +55,7 @@ void MX_CAN1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN CAN1_Init 2 */
-// 1. 创建过滤器配置结构体
-CAN_FilterTypeDef sFilterConfig;
 
-// 2. 设置过滤器编号（CAN1使用0-14）
-sFilterConfig.FilterBank = 0;
-
-// 3. 选择掩码模式（可以接收多个ID）
-sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-
-// 4. 选择32位模式
-sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-
-// 5. 设置基础ID（以标准ID左移5位写入高16位）
-// 例如接收 0x200-0x20F：以 0x200 为基准，使用掩码匹配高11位
-sFilterConfig.FilterIdHigh = (uint16_t)((0x200U << 5) >> 16);
-sFilterConfig.FilterIdLow = (uint16_t)((0x200U << 5) & 0xFFFFU);
-
-// 6. 设置掩码（对标准ID的高11位进行掩码，使 0x200-0x20F 区间通过）
-// 对应 32 位滤波寄存器，需要左移5位再分割
-uint32_t mask = (0x7F0U << 5); // 0x7F0 = 掩码位，保留高11位（示例）
-sFilterConfig.FilterMaskIdHigh = (uint16_t)((mask >> 16) & 0xFFFFU);
-sFilterConfig.FilterMaskIdLow = (uint16_t)(mask & 0xFFFFU);
-
-// 7. 分配到FIFO0
-sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
-
-// 8. 激活过滤器
-sFilterConfig.FilterActivation = ENABLE;
-
-// 9. 设置CAN1的过滤器范围
-sFilterConfig.SlaveStartFilterBank = 14;
-
-// 10. 应用过滤器配置
-if (HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig) != HAL_OK)
-{
-    Error_Handler();
-}
-
-// 11. 启动CAN1接收中断
-if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
-{
-    Error_Handler();
-}
-
-// 12. 启动CAN1
-if (HAL_CAN_Start(&hcan1) != HAL_OK)
-{
-    Error_Handler();
-}
   /* USER CODE END CAN1_Init 2 */
 
 }
@@ -144,60 +87,7 @@ void MX_CAN2_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN CAN2_Init 2 */
-// 1. 创建第一个过滤器配置 - 用于GM6020_1 (Yaw轴)
-CAN_FilterTypeDef sFilterConfig_CAN2_Yaw;
-sFilterConfig_CAN2_Yaw.FilterBank = 15;           // CAN2使用15-27
-sFilterConfig_CAN2_Yaw.FilterMode = CAN_FILTERMODE_IDLIST;  // 精确匹配
-sFilterConfig_CAN2_Yaw.FilterScale = CAN_FILTERSCALE_32BIT;
-{
-  uint32_t id32 = (0x205U << 5); // 标准ID 左移 5 位写入 32 位寄存器格式
-  sFilterConfig_CAN2_Yaw.FilterIdHigh = (uint16_t)((id32 >> 16) & 0xFFFFU);
-  sFilterConfig_CAN2_Yaw.FilterIdLow  = (uint16_t)(id32 & 0xFFFFU);
-  /* 列表模式下，Mask 字段通常不被使用，但保持与 Id 相同以保证一致性 */
-  sFilterConfig_CAN2_Yaw.FilterMaskIdHigh = (uint16_t)((id32 >> 16) & 0xFFFFU);
-  sFilterConfig_CAN2_Yaw.FilterMaskIdLow  = (uint16_t)(id32 & 0xFFFFU);
-}
-sFilterConfig_CAN2_Yaw.FilterFIFOAssignment = CAN_RX_FIFO1;
-sFilterConfig_CAN2_Yaw.FilterActivation = ENABLE;
-sFilterConfig_CAN2_Yaw.SlaveStartFilterBank = 14;
 
-if (HAL_CAN_ConfigFilter(&hcan2, &sFilterConfig_CAN2_Yaw) != HAL_OK)
-{
-    Error_Handler();
-}
-
-// 2. 创建第二个过滤器配置 - 用于板间通信
-CAN_FilterTypeDef sFilterConfig_CAN2_CToC;
-sFilterConfig_CAN2_CToC.FilterBank = 16;           // 下一个过滤器
-sFilterConfig_CAN2_CToC.FilterMode = CAN_FILTERMODE_IDLIST;  // 精确匹配
-sFilterConfig_CAN2_CToC.FilterScale = CAN_FILTERSCALE_32BIT;
-{
-  uint32_t id32 = (0x189U << 5); // 标准ID 左移 5 位
-  sFilterConfig_CAN2_CToC.FilterIdHigh = (uint16_t)((id32 >> 16) & 0xFFFFU);
-  sFilterConfig_CAN2_CToC.FilterIdLow  = (uint16_t)(id32 & 0xFFFFU);
-  sFilterConfig_CAN2_CToC.FilterMaskIdHigh = (uint16_t)((id32 >> 16) & 0xFFFFU);
-  sFilterConfig_CAN2_CToC.FilterMaskIdLow  = (uint16_t)(id32 & 0xFFFFU);
-}
-sFilterConfig_CAN2_CToC.FilterFIFOAssignment = CAN_RX_FIFO1;
-sFilterConfig_CAN2_CToC.FilterActivation = ENABLE;
-sFilterConfig_CAN2_CToC.SlaveStartFilterBank = 14;
-
-if (HAL_CAN_ConfigFilter(&hcan2, &sFilterConfig_CAN2_CToC) != HAL_OK)
-{
-    Error_Handler();
-}
-
-// 3. 启动CAN2接收中断
-if (HAL_CAN_ActivateNotification(&hcan2, CAN_IT_RX_FIFO1_MSG_PENDING) != HAL_OK)
-{
-    Error_Handler();
-}
-
-// 4. 启动CAN2
-if (HAL_CAN_Start(&hcan2) != HAL_OK)
-{
-    Error_Handler();
-}
   /* USER CODE END CAN2_Init 2 */
 
 }
