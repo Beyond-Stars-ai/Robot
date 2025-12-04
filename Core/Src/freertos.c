@@ -26,6 +26,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "usart.h"
+#include "can.h"
+#include <string.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -207,10 +210,13 @@ void StartReceiveTask(void *argument)
 void StartCANTask(void *argument)
 {
   /* USER CODE BEGIN StartCANTask */
+  osDelay(1500);
+
+  HAL_UART_Transmit(&huart1, (uint8_t*)"CAN Task Started\r\n", 18, 1000);
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    osDelay(1000);  
   }
   /* USER CODE END StartCANTask */
 }

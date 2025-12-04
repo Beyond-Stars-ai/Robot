@@ -29,13 +29,7 @@ extern uint8_t CAN_CAN2DeviceNumber;
 extern uint8_t CAN_DeviceNumber;
 extern int8_t CAN_IDSelect;
 
-/* 电机ID定义 - 与原始代码保持一致 */
-#define GM6020_1        0x205
-#define GM6020_2        0x206  
-#define M3508_1         0x201
-#define M3508_2         0x202
-#define M2006_7         0x207
-#define CToC_MasterID1  0x189  // 板间通信ID，需要根据实际修改
+/* 电机ID定义 - 在 can.h 中已定义，避免重复定义 */
 
 /* USER CODE END 0 */
 
@@ -82,14 +76,16 @@ sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
 // 4. 选择32位模式
 sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
 
-// 5. 设置基础ID（0x200 << 5 = 0x4000）
-sFilterConfig.FilterIdHigh = 0x0000;
-sFilterConfig.FilterIdLow = 0x0000;
+// 5. 设置基础ID（以标准ID左移5位写入高16位）
+// 例如接收 0x200-0x20F：以 0x200 为基准，使用掩码匹配高11位
+sFilterConfig.FilterIdHigh = (uint16_t)((0x200U << 5) >> 16);
+sFilterConfig.FilterIdLow = (uint16_t)((0x200U << 5) & 0xFFFFU);
 
-// 6. 设置掩码（0xFFE0 = 只检查高5位）
-// 这样0x200-0x20F都会被接收
-sFilterConfig.FilterMaskIdHigh = 0xFFE0;
-sFilterConfig.FilterMaskIdLow = 0x0000;
+// 6. 设置掩码（对标准ID的高11位进行掩码，使 0x200-0x20F 区间通过）
+// 对应 32 位滤波寄存器，需要左移5位再分割
+uint32_t mask = (0x7F0U << 5); // 0x7F0 = 掩码位，保留高11位（示例）
+sFilterConfig.FilterMaskIdHigh = (uint16_t)((mask >> 16) & 0xFFFFU);
+sFilterConfig.FilterMaskIdLow = (uint16_t)(mask & 0xFFFFU);
 
 // 7. 分配到FIFO0
 sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
@@ -153,10 +149,14 @@ CAN_FilterTypeDef sFilterConfig_CAN2_Yaw;
 sFilterConfig_CAN2_Yaw.FilterBank = 15;           // CAN2使用15-27
 sFilterConfig_CAN2_Yaw.FilterMode = CAN_FILTERMODE_IDLIST;  // 精确匹配
 sFilterConfig_CAN2_Yaw.FilterScale = CAN_FILTERSCALE_32BIT;
-sFilterConfig_CAN2_Yaw.FilterIdHigh = (0x205 << 5);  // 0x205 = 517
-sFilterConfig_CAN2_Yaw.FilterIdLow = 0x0000;
-sFilterConfig_CAN2_Yaw.FilterMaskIdHigh = (0x205 << 5);  // 精确匹配
-sFilterConfig_CAN2_Yaw.FilterMaskIdLow = 0x0000;
+{
+  uint32_t id32 = (0x205U << 5); // 标准ID 左移 5 位写入 32 位寄存器格式
+  sFilterConfig_CAN2_Yaw.FilterIdHigh = (uint16_t)((id32 >> 16) & 0xFFFFU);
+  sFilterConfig_CAN2_Yaw.FilterIdLow  = (uint16_t)(id32 & 0xFFFFU);
+  /* 列表模式下，Mask 字段通常不被使用，但保持与 Id 相同以保证一致性 */
+  sFilterConfig_CAN2_Yaw.FilterMaskIdHigh = (uint16_t)((id32 >> 16) & 0xFFFFU);
+  sFilterConfig_CAN2_Yaw.FilterMaskIdLow  = (uint16_t)(id32 & 0xFFFFU);
+}
 sFilterConfig_CAN2_Yaw.FilterFIFOAssignment = CAN_RX_FIFO1;
 sFilterConfig_CAN2_Yaw.FilterActivation = ENABLE;
 sFilterConfig_CAN2_Yaw.SlaveStartFilterBank = 14;
@@ -171,10 +171,13 @@ CAN_FilterTypeDef sFilterConfig_CAN2_CToC;
 sFilterConfig_CAN2_CToC.FilterBank = 16;           // 下一个过滤器
 sFilterConfig_CAN2_CToC.FilterMode = CAN_FILTERMODE_IDLIST;  // 精确匹配
 sFilterConfig_CAN2_CToC.FilterScale = CAN_FILTERSCALE_32BIT;
-sFilterConfig_CAN2_CToC.FilterIdHigh = (0x189 << 5);  // 0x189 = 393
-sFilterConfig_CAN2_CToC.FilterIdLow = 0x0000;
-sFilterConfig_CAN2_CToC.FilterMaskIdHigh = (0x189 << 5);  // 精确匹配
-sFilterConfig_CAN2_CToC.FilterMaskIdLow = 0x0000;
+{
+  uint32_t id32 = (0x189U << 5); // 标准ID 左移 5 位
+  sFilterConfig_CAN2_CToC.FilterIdHigh = (uint16_t)((id32 >> 16) & 0xFFFFU);
+  sFilterConfig_CAN2_CToC.FilterIdLow  = (uint16_t)(id32 & 0xFFFFU);
+  sFilterConfig_CAN2_CToC.FilterMaskIdHigh = (uint16_t)((id32 >> 16) & 0xFFFFU);
+  sFilterConfig_CAN2_CToC.FilterMaskIdLow  = (uint16_t)(id32 & 0xFFFFU);
+}
 sFilterConfig_CAN2_CToC.FilterFIFOAssignment = CAN_RX_FIFO1;
 sFilterConfig_CAN2_CToC.FilterActivation = ENABLE;
 sFilterConfig_CAN2_CToC.SlaveStartFilterBank = 14;
