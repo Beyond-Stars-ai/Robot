@@ -22,6 +22,13 @@
 
 /* USER CODE BEGIN 0 */
 
+uint8_t CAN_CAN1DeviceNumber=4;//CAN1总线上设备数量
+uint8_t CAN_CAN2DeviceNumber=2;//CAN2总线上设备数量
+uint8_t CAN_DeviceNumber=6;//CAN总线上设备数量
+//uint32_t CAN_CAN1IDList[10][2]={{CAN_GM6020,GM6020_2},{CAN_M2006,M2006_7},{CAN_M3508,M3508_1},{CAN_M3508,M3508_2},0};//CAN1总线上设备ID列表
+//uint32_t CAN_CAN2IDList[10][2]={{CAN_GM6020,GM6020_1},{CAN_RoboMasterC,CToC_MasterID1},0};//CAN2总线上设备ID列表
+int8_t CAN_IDSelect=0;//CAN总线上ID列表选择位
+
 /* USER CODE END 0 */
 
 CAN_HandleTypeDef hcan1;
@@ -45,8 +52,8 @@ void MX_CAN1_Init(void)
   hcan1.Init.TimeSeg1 = CAN_BS1_10TQ;
   hcan1.Init.TimeSeg2 = CAN_BS2_3TQ;
   hcan1.Init.TimeTriggeredMode = DISABLE;
-  hcan1.Init.AutoBusOff = DISABLE;
-  hcan1.Init.AutoWakeUp = DISABLE;
+  hcan1.Init.AutoBusOff = ENABLE;
+  hcan1.Init.AutoWakeUp = ENABLE;
   hcan1.Init.AutoRetransmission = DISABLE;
   hcan1.Init.ReceiveFifoLocked = DISABLE;
   hcan1.Init.TransmitFifoPriority = DISABLE;
@@ -77,8 +84,8 @@ void MX_CAN2_Init(void)
   hcan2.Init.TimeSeg1 = CAN_BS1_10TQ;
   hcan2.Init.TimeSeg2 = CAN_BS2_3TQ;
   hcan2.Init.TimeTriggeredMode = DISABLE;
-  hcan2.Init.AutoBusOff = DISABLE;
-  hcan2.Init.AutoWakeUp = DISABLE;
+  hcan2.Init.AutoBusOff = ENABLE;
+  hcan2.Init.AutoWakeUp = ENABLE;
   hcan2.Init.AutoRetransmission = DISABLE;
   hcan2.Init.ReceiveFifoLocked = DISABLE;
   hcan2.Init.TransmitFifoPriority = DISABLE;
@@ -214,5 +221,140 @@ void HAL_CAN_MspDeInit(CAN_HandleTypeDef* canHandle)
 }
 
 /* USER CODE BEGIN 1 */
+
+/*
+ *函数简介:CAN1总线接收报文
+ *参数说明:报文存储数组
+ *返回类型:报文ID
+ *备注:默认8字节标准数据帧
+ *备注:没有接收到数据,直接退出,返回0
+ */
+uint32_t CAN_CAN1Receive(uint8_t *Data)
+{
+    CAN_RxHeaderTypeDef RxHeader;
+    uint8_t RxData[8];
+    
+    if(HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK)
+    {
+        return 0;  // 没有接收到数据，直接退出
+    }
+    
+    // 复制接收到的数据
+    for(uint8_t i = 0; i < 8; i++)
+    {
+        Data[i] = RxData[i];
+    }
+    
+    return RxHeader.StdId;  // 返回标准ID
+}
+
+/*
+ *函数简介:CAN2总线接收报文
+ *参数说明:报文存储数组
+ *返回类型:报文ID
+ *备注:默认8字节数据
+ *备注:没有接收到数据,直接退出,返回0
+ */
+uint32_t CAN_CAN2Receive(uint8_t *Data)
+{
+    CAN_RxHeaderTypeDef RxHeader;
+    uint8_t RxData[8];
+    
+    if(HAL_CAN_GetRxMessage(&hcan2, CAN_RX_FIFO1, &RxHeader, RxData) != HAL_OK)
+    {
+        return 0;
+    }
+    
+    for(uint8_t i = 0; i < 8; i++)
+    {
+        Data[i] = RxData[i];
+    }
+    
+    return RxHeader.StdId;
+}
+
+/*
+ *函数简介:CAN1总线更改接收ID
+ *参数说明:接收ID
+ *返回类型:无
+ *备注:无
+ */
+void CAN_CAN1ChangeID(uint32_t ID)
+{
+    CAN_FilterTypeDef sFilterConfig;
+
+    // 配置过滤器
+    sFilterConfig.FilterBank = 0;  // 使用过滤器0
+    sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;  // 掩码模式
+    sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;  // 32位过滤器
+    sFilterConfig.FilterIdHigh = (ID << 5);  // 标准ID左移5位
+    sFilterConfig.FilterIdLow = (ID << 5);   // 32位模式下，低16位也设置相同值
+    sFilterConfig.FilterMaskIdHigh = 0xFFE3 << 16;  // 掩码高16位
+    sFilterConfig.FilterMaskIdLow = 0xFFE3;        // 掩码低16位
+    sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;  // 分配到FIFO0
+    sFilterConfig.FilterActivation = ENABLE;  // 激活过滤器
+    sFilterConfig.SlaveStartFilterBank = 14;  // 从CAN2开始使用的过滤器编号
+
+    // 配置过滤器
+    if (HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/*
+ *函数简介:CAN2总线更改接收ID
+ *参数说明:接收ID
+ *返回类型:无
+ *备注:无
+ */
+void CAN_CAN2ChangeID(uint32_t ID)
+{
+    CAN_FilterTypeDef sFilterConfig;
+
+    // 配置过滤器
+    sFilterConfig.FilterBank = 15;  // 使用过滤器15
+    sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;  // 掩码模式
+    sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;  // 32位过滤器
+    sFilterConfig.FilterIdHigh = (ID << 5);  // 标准ID左移5位
+    sFilterConfig.FilterIdLow = (ID << 5);   // 32位模式下，低16位也设置相同值
+    sFilterConfig.FilterMaskIdHigh = 0xFFE3 << 16;  // 掩码高16位
+    sFilterConfig.FilterMaskIdLow = 0xFFE3;        // 掩码低16位
+    sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO1;  // 分配到FIFO1
+    sFilterConfig.FilterActivation = ENABLE;  // 激活过滤器
+    sFilterConfig.SlaveStartFilterBank = 14;  // 从CAN2开始使用的过滤器编号
+
+    // 配置过滤器
+    if (HAL_CAN_ConfigFilter(&hcan2, &sFilterConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+/*
+ *函数简介:CAN接收ID列表复位
+ *参数说明:无
+ *返回类型:无
+ *备注:复位CAN_IDSelect,重新从CAN1的1号设备开始接收
+ */
+// void CAN_CANIDReset(void)
+// {
+// 	CAN_IDSelect=0;
+// 	CAN_CAN1ChangeID(CAN_CAN1IDList[0][1]);
+// 	CAN_CAN2ChangeID(0x000);
+// }
+
+/*
+ *函数简介:CAN接收获取裁判系统状态
+ *参数说明:无
+ *返回类型:无
+ *备注:跳转到接收底盘C板的回传数据,主要用于发射机构掉电时的CAN设备隔离
+ */
+// void CAN_CAN_GetRefereeSystemData(void)
+// {
+// 	CAN_IDSelect=5;
+// 	CAN_CAN1ChangeID(0x000);	
+// 	CAN_CAN2ChangeID(CAN_CAN2IDList[1][1]);
+// }
 
 /* USER CODE END 1 */

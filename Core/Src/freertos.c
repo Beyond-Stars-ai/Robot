@@ -153,7 +153,7 @@ void StartDebugTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    HAL_UART_Transmit(&huart1, (uint8_t*)"hello world\r\n", strlen("hello world\r\n"), 1000);
+    //HAL_UART_Transmit(&huart1, (uint8_t*)"hello world\r\n", strlen("hello world\r\n"), 1000);
     osDelay(1000);
   }
   /* USER CODE END StartDebugTask */
@@ -195,7 +195,7 @@ void StartReceiveTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    osDelay(1000);
   }
   /* USER CODE END StartReceiveTask */
 }
@@ -210,10 +210,13 @@ void StartReceiveTask(void *argument)
 void StartCANTask(void *argument)
 {
   /* USER CODE BEGIN StartCANTask */
-
+  osDelay(20);
   /* Infinite loop */
   for(;;)
   {
+    // 打印CAN通信正常工作信息
+    HAL_UART_Transmit(&huart1, (uint8_t*)"CAN communication working normally\r\n", 
+                      strlen("CAN communication working normally\r\n"), 1000);
     osDelay(1000);  
   }
   /* USER CODE END StartCANTask */
