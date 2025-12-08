@@ -22,11 +22,17 @@
 
 /* USER CODE BEGIN 0 */
 
+#include "GM6020.h"
+#include "M2006.h"
+#include "M3508.h"
+#include "CToC.h"
+
+
 uint8_t CAN_CAN1DeviceNumber=4;//CAN1总线上设备数量
 uint8_t CAN_CAN2DeviceNumber=2;//CAN2总线上设备数量
 uint8_t CAN_DeviceNumber=6;//CAN总线上设备数量
-//uint32_t CAN_CAN1IDList[10][2]={{CAN_GM6020,GM6020_2},{CAN_M2006,M2006_7},{CAN_M3508,M3508_1},{CAN_M3508,M3508_2},0};//CAN1总线上设备ID列表
-//uint32_t CAN_CAN2IDList[10][2]={{CAN_GM6020,GM6020_1},{CAN_RoboMasterC,CToC_MasterID1},0};//CAN2总线上设备ID列表
+uint32_t CAN_CAN1IDList[10][2]={{CAN_GM6020,GM6020_2},{CAN_M2006,M2006_7},{CAN_M3508,M3508_1},{CAN_M3508,M3508_2},0};//CAN1总线上设备ID列表
+uint32_t CAN_CAN2IDList[10][2]={{CAN_GM6020,GM6020_1},{CAN_RoboMasterC,CToC_MasterID1},0};//CAN2总线上设备ID列表
 int8_t CAN_IDSelect=0;//CAN总线上ID列表选择位
 
 /* USER CODE END 0 */
@@ -287,10 +293,15 @@ void CAN_CAN1ChangeID(uint32_t ID)
     sFilterConfig.FilterBank = 0;  // 使用过滤器0
     sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;  // 掩码模式
     sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;  // 32位过滤器
-    sFilterConfig.FilterIdHigh = (ID << 5);  // 标准ID左移5位
-    sFilterConfig.FilterIdLow = (ID << 5);   // 32位模式下，低16位也设置相同值
-    sFilterConfig.FilterMaskIdHigh = 0xFFE3 << 16;  // 掩码高16位
-    sFilterConfig.FilterMaskIdLow = 0xFFE3;        // 掩码低16位
+    
+    // ID配置：标准ID左移5位
+    sFilterConfig.FilterIdHigh = (ID << 5) >> 16;      // ID高16位
+    sFilterConfig.FilterIdLow = (ID << 5) & 0xFFFF;    // ID低16位
+    
+    // 掩码配置：0xFFE3直接赋值
+    sFilterConfig.FilterMaskIdHigh = 0xFFE3;  // 掩码高16位
+    sFilterConfig.FilterMaskIdLow = 0xFFE3;   // 掩码低16位
+    
     sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;  // 分配到FIFO0
     sFilterConfig.FilterActivation = ENABLE;  // 激活过滤器
     sFilterConfig.SlaveStartFilterBank = 14;  // 从CAN2开始使用的过滤器编号
@@ -316,10 +327,15 @@ void CAN_CAN2ChangeID(uint32_t ID)
     sFilterConfig.FilterBank = 15;  // 使用过滤器15
     sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;  // 掩码模式
     sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;  // 32位过滤器
-    sFilterConfig.FilterIdHigh = (ID << 5);  // 标准ID左移5位
-    sFilterConfig.FilterIdLow = (ID << 5);   // 32位模式下，低16位也设置相同值
-    sFilterConfig.FilterMaskIdHigh = 0xFFE3 << 16;  // 掩码高16位
-    sFilterConfig.FilterMaskIdLow = 0xFFE3;        // 掩码低16位
+    
+    // ID配置：标准ID左移5位
+    sFilterConfig.FilterIdHigh = (ID << 5) >> 16;      // ID高16位
+    sFilterConfig.FilterIdLow = (ID << 5) & 0xFFFF;    // ID低16位
+    
+    // 掩码配置：0xFFE3直接赋值
+    sFilterConfig.FilterMaskIdHigh = 0xFFE3;  // 掩码高16位
+    sFilterConfig.FilterMaskIdLow = 0xFFE3;   // 掩码低16位
+    
     sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO1;  // 分配到FIFO1
     sFilterConfig.FilterActivation = ENABLE;  // 激活过滤器
     sFilterConfig.SlaveStartFilterBank = 14;  // 从CAN2开始使用的过滤器编号
@@ -337,12 +353,12 @@ void CAN_CAN2ChangeID(uint32_t ID)
  *返回类型:无
  *备注:复位CAN_IDSelect,重新从CAN1的1号设备开始接收
  */
-// void CAN_CANIDReset(void)
-// {
-// 	CAN_IDSelect=0;
-// 	CAN_CAN1ChangeID(CAN_CAN1IDList[0][1]);
-// 	CAN_CAN2ChangeID(0x000);
-// }
+void CAN_CANIDReset(void)
+{
+	CAN_IDSelect=0;
+	CAN_CAN1ChangeID(CAN_CAN1IDList[0][1]);
+	CAN_CAN2ChangeID(0x000);
+}
 
 /*
  *函数简介:CAN接收获取裁判系统状态
@@ -350,11 +366,149 @@ void CAN_CAN2ChangeID(uint32_t ID)
  *返回类型:无
  *备注:跳转到接收底盘C板的回传数据,主要用于发射机构掉电时的CAN设备隔离
  */
-// void CAN_CAN_GetRefereeSystemData(void)
-// {
-// 	CAN_IDSelect=5;
-// 	CAN_CAN1ChangeID(0x000);	
-// 	CAN_CAN2ChangeID(CAN_CAN2IDList[1][1]);
-// }
+void CAN_CAN_GetRefereeSystemData(void)
+{
+	CAN_IDSelect=5;
+	CAN_CAN1ChangeID(0x000);	
+	CAN_CAN2ChangeID(CAN_CAN2IDList[1][1]);
+}
+
+/*
+ *函数简介:CAN1_FIFO0接收中断函数
+ *参数说明:无
+ *返回类型:无
+ *备注:进入中断时关闭连接检测计时,离开中断时重新打开连接检测计时
+ *备注:某一设备掉线时,CAN_IDSelect会停留在当前设备在ID列表的索引
+ *备注:从掉线到重新连接时会重启遥控器
+ */
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+    if(hcan->Instance == CAN1)
+    {
+        uint8_t Data[8];
+        uint32_t ID = CAN_CAN1Receive(Data);
+        
+        // 暂时注释掉连接检测相关功能
+        /*
+        LinkCheck_OFF();
+        if(LinkCheck_ErrorID >= 0 && LinkCheck_ErrorID < CAN_CAN1DeviceNumber)
+        {
+            if(ID == CAN_CAN1IDList[LinkCheck_ErrorID][1])
+            {
+                LinkCheck_ErrorID = -1;
+                LinkCheck_Error = 0;
+                Warming_BuzzerClean();
+            }
+        }
+        */
+        
+        // if(CAN_CAN1IDList[CAN_IDSelect][0] == CAN_M3508)
+        //     M3508_CANDataProcess(ID, Data);
+        // else if(CAN_CAN1IDList[CAN_IDSelect][0] == CAN_M2006)
+        //     M2006_CANDataProcess(ID, Data);
+        // else
+        //     GM6020_CANDataProcess(ID, Data);
+        
+        // 保留ID切换逻辑
+        CAN_IDSelect = (CAN_IDSelect + 1) % CAN_DeviceNumber;
+        if(CAN_IDSelect >= 0 && CAN_IDSelect < CAN_CAN1DeviceNumber)
+        {
+            CAN_CAN1ChangeID(CAN_CAN1IDList[CAN_IDSelect][1]);
+            CAN_CAN2ChangeID(0x000);
+        }
+        else
+        {
+            CAN_CAN1ChangeID(0x000);
+            CAN_CAN2ChangeID(CAN_CAN2IDList[CAN_IDSelect-CAN_CAN1DeviceNumber][1]);
+        }
+        
+        // 暂时注释掉发射机构相关功能
+        /*
+        if(RefereeSystem_ShooterOpenFlag == 1)
+        {
+            RefereeSystem_ShooterOpenCounter++;
+            if(RefereeSystem_ShooterOpenCounter >= 5000)
+            {
+                RefereeSystem_ShooterOpenCounter = 0;
+                RefereeSystem_ShooterOpenFlag = 0;
+                CAN_CAN1DeviceNumber = 4;
+                CAN_DeviceNumber = 6;
+            }
+        }
+        */
+        
+        // 暂时注释掉连接检测
+        // LinkCheck_ON();
+    }
+}
+
+/*
+ *函数简介:CAN2_FIFO1接收中断函数
+ *参数说明:无
+ *返回类型:无
+ *备注:进入中断时关闭连接检测计时,离开中断时重新打开连接检测计时
+ *备注:某一设备掉线时,CAN_IDSelect会停留在当前设备在ID列表的索引
+ */
+void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+    if(hcan->Instance == CAN2)
+    {
+        uint8_t Data[8];
+        uint32_t ID = CAN_CAN2Receive(Data);
+        
+        // 暂时注释掉连接检测相关功能
+        /*
+        LinkCheck_OFF();
+        if(LinkCheck_ErrorID >= CAN_CAN1DeviceNumber && LinkCheck_ErrorID < CAN_DeviceNumber)
+        {
+            if(ID == CAN_CAN2IDList[LinkCheck_ErrorID-CAN_CAN1DeviceNumber][1])
+            {
+                LinkCheck_ErrorID = -1;
+                LinkCheck_Error = 0;
+                Warming_BuzzerClean();
+            }
+        }
+        */
+
+        // 暂时注释掉数据处理
+        /*
+        if(CAN_CAN2IDList[CAN_IDSelect-CAN_CAN1DeviceNumber][0] == CAN_GM6020)
+            GM6020_CANDataProcess(ID, Data);
+        else if(CAN_CAN2IDList[CAN_IDSelect-CAN_CAN1DeviceNumber][0] == CAN_RoboMasterC)
+            CToC_CANDataProcess(ID, Data);
+        */
+        
+        // 保留ID切换逻辑
+        CAN_IDSelect = (CAN_IDSelect + 1) % CAN_DeviceNumber;
+        if(CAN_IDSelect >= 0 && CAN_IDSelect < CAN_CAN1DeviceNumber)
+        {
+            CAN_CAN1ChangeID(CAN_CAN1IDList[CAN_IDSelect][1]);
+            CAN_CAN2ChangeID(0x000);
+        }
+        else
+        {
+            CAN_CAN1ChangeID(0x000);
+            CAN_CAN2ChangeID(CAN_CAN2IDList[CAN_IDSelect-CAN_CAN1DeviceNumber][1]);
+        }
+        
+        // 暂时注释掉发射机构相关功能
+        /*
+        if(RefereeSystem_ShooterOpenFlag == 1)
+        {
+            RefereeSystem_ShooterOpenCounter++;
+            if(RefereeSystem_ShooterOpenCounter >= 5000)
+            {
+                RefereeSystem_ShooterOpenCounter = 0;
+                RefereeSystem_ShooterOpenFlag = 0;
+                CAN_CAN1DeviceNumber = 4;
+                CAN_DeviceNumber = 6;
+            }
+        }
+        */
+        
+        // 暂时注释掉连接检测
+        // LinkCheck_ON();
+    }
+}
 
 /* USER CODE END 1 */

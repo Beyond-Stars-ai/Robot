@@ -214,9 +214,6 @@ void StartCANTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    // 打印CAN通信正常工作信息
-    HAL_UART_Transmit(&huart1, (uint8_t*)"CAN communication working normally\r\n", 
-                      strlen("CAN communication working normally\r\n"), 1000);
     osDelay(1000);  
   }
   /* USER CODE END StartCANTask */
