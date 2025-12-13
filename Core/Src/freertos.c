@@ -153,7 +153,7 @@ void StartDebugTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    //HAL_UART_Transmit(&huart1, (uint8_t*)"hello world\r\n", strlen("hello world\r\n"), 1000);
+    HAL_UART_Transmit(&huart1, (uint8_t*)"hello world\r\n", strlen("hello world\r\n"), 1000);
     osDelay(1000);
   }
   /* USER CODE END StartDebugTask */
