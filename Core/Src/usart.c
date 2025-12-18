@@ -21,7 +21,10 @@
 #include "usart.h"
 
 /* USER CODE BEGIN 0 */
-
+#include "main.h"
+#include "string.h"
+#include "stdio.h"
+#include "stdlib.h"
 /* USER CODE END 0 */
 
 UART_HandleTypeDef huart1;
@@ -249,4 +252,33 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 
 /* USER CODE BEGIN 1 */
 
+uint8_t receiveData[18];
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+    uint8_t Message_Remote[18] = {0};
+    if (huart->Instance == USART3 && Size > 0 && Size <= sizeof(receiveData))
+    {
+        // 复制接收到的数据
+        memcpy(Message_Remote, receiveData, Size);
+        // printf("第一次处理 %c\n", Message_Remote[0]);
+
+        // 将消息放入队列
+        osMessageQueuePut(RemoteQueueHandle, &Message_Remote, 0, 0);
+        // printf("第二次处理 %c\n", Message_Remote[0]);
+
+        // 清除 IDLE 中断标志
+        __HAL_UART_CLEAR_IDLEFLAG(huart);
+
+        // 重新启动IT接收
+        // HAL_UART_Transmit_DMA(&huart2, receiveData, sizeof(receiveData));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
+        __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT); // 禁止半传送中断
+    }
+}
+
+void StartRemoteUART()
+{
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
+}
 /* USER CODE END 1 */
