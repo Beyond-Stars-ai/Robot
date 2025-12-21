@@ -12,8 +12,8 @@
 /* ----------------------- RC Switch Definition----------------------------- */
 
 #define RC_SW_UP          ((uint16_t)1)
-#define RC_SW_MID         ((uint16_t)3)
-#define RC_SW_DOWN        ((uint16_t)2)
+#define RC_SW_MID         ((uint16_t)2)
+#define RC_SW_DOWN        ((uint16_t)3)
 #define switch_is_down(s) (s == RC_SW_DOWN)
 #define switch_is_mid(s)  (s == RC_SW_MID)
 #define switch_is_up(s)   (s == RC_SW_UP)

@@ -41,7 +41,7 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-extern osMessageQueueId_t RemoteQueueHandle;
+// extern osMessageQueueId_t RemoteQueueHandle;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -65,7 +65,9 @@ void Error_Handler(void);
 #define LED_B_GPIO_Port GPIOH
 
 /* USER CODE BEGIN Private defines */
-
+#define MOVE_BUFFER_SIZE (2 * sizeof(int16_t))
+#define TURN_BUFFER_SIZE (2 * sizeof(int16_t))
+#define STATUS_BUFFER_SIZE (2 * sizeof(uint8_t))
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
