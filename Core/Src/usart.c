@@ -21,10 +21,10 @@
 #include "usart.h"
 
 /* USER CODE BEGIN 0 */
-#include "main.h"
-#include "string.h"
-#include "stdio.h"
-#include "stdlib.h"
+// #include "main.h"
+// #include "string.h"
+// #include "stdio.h"
+// #include "stdlib.h"
 /* USER CODE END 0 */
 
 UART_HandleTypeDef huart1;
@@ -75,7 +75,7 @@ void MX_USART3_UART_Init(void)
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
   huart3.Init.BaudRate = 100000;
-  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.WordLength = UART_WORDLENGTH_9B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_EVEN;
   huart3.Init.Mode = UART_MODE_TX_RX;
@@ -176,8 +176,8 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     hdma_usart3_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
     hdma_usart3_rx.Init.PeriphInc = DMA_PINC_DISABLE;
     hdma_usart3_rx.Init.MemInc = DMA_MINC_ENABLE;
-    hdma_usart3_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    hdma_usart3_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_usart3_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
+    hdma_usart3_rx.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
     hdma_usart3_rx.Init.Mode = DMA_NORMAL;
     hdma_usart3_rx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
     hdma_usart3_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
@@ -252,33 +252,33 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 
 /* USER CODE BEGIN 1 */
 
-uint8_t receiveData[18];
+// uint8_t receiveData[18];
 
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
-{
-    uint8_t Message_Remote[18] = {0};
-    if (huart->Instance == USART3 && Size > 0 && Size <= sizeof(receiveData))
-    {
-        // 复制接收到的数据
-        memcpy(Message_Remote, receiveData, Size);
-        // printf("第一次处理 %c\n", Message_Remote[0]);
+// void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+// {
+//     uint8_t Message_Remote[18] = {0};
+//     if (huart->Instance == USART3 && Size > 0 && Size <= sizeof(receiveData))
+//     {
+//         // 复制接收到的数据
+//         memcpy(Message_Remote, receiveData, Size);
+//         // printf("第一次处理 %c\n", Message_Remote[0]);
 
-        // 将消息放入队列
-        osMessageQueuePut(RemoteQueueHandle, &Message_Remote, 0, 0);
-        // printf("第二次处理 %c\n", Message_Remote[0]);
+//         // 将消息放入队列
+//         osMessageQueuePut(RemoteQueueHandle, &Message_Remote, 0, 0);
+//         // printf("第二次处理 %c\n", Message_Remote[0]);
 
-        // 清除 IDLE 中断标志
-        __HAL_UART_CLEAR_IDLEFLAG(huart);
+//         // 清除 IDLE 中断标志
+//         __HAL_UART_CLEAR_IDLEFLAG(huart);
 
-        // 重新启动IT接收
-        // HAL_UART_Transmit_DMA(&huart2, receiveData, sizeof(receiveData));
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
-        __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT); // 禁止半传送中断
-    }
-}
+//         // 重新启动IT接收
+//         // HAL_UART_Transmit_DMA(&huart2, receiveData, sizeof(receiveData));
+//         HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
+//         __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT); // 禁止半传送中断
+//     }
+// }
 
-void StartRemoteUART()
-{
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
-}
+// void StartRemoteUART()
+// {
+//     HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
+// }
 /* USER CODE END 1 */
