@@ -3,7 +3,7 @@
 
 #include "PID.h"
 #include "Motor.h"
-// #include "Remote.h"
+#include "remote_control.h"
 #include "BSP_CAN.h"
 
 void Gimbal_Pitch_Init(void);
