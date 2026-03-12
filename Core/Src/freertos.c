@@ -32,6 +32,11 @@
 // #include "usart.h"
 
 #include "remote_control.h"
+#include "Motor.h"
+#include "bsp_can.h"
+
+#include "Gimbal_CtoC.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -73,10 +78,17 @@ const osThreadAttr_t RemoteTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for CtoCTask */
-osThreadId_t CtoCTaskHandle;
-const osThreadAttr_t CtoCTask_attributes = {
-  .name = "CtoCTask",
+/* Definitions for CanTask */
+osThreadId_t CanTaskHandle;
+const osThreadAttr_t CanTask_attributes = {
+  .name = "CanTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for TOTask */
+osThreadId_t TOTaskHandle;
+const osThreadAttr_t TOTask_attributes = {
+  .name = "TOTask",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
@@ -93,7 +105,8 @@ const osMessageQueueAttr_t rcDataQueue_attributes = {
 
 void StartDebugTask(void *argument);
 void StartRemoteTask(void *argument);
-void StartCtoCTask(void *argument);
+void StartCanTask(void *argument);
+void StartTOTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -104,7 +117,7 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
   */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
-
+  Can_Filter_Init();
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -134,8 +147,11 @@ void MX_FREERTOS_Init(void) {
   /* creation of RemoteTask */
   RemoteTaskHandle = osThreadNew(StartRemoteTask, NULL, &RemoteTask_attributes);
 
-  /* creation of CtoCTask */
-  CtoCTaskHandle = osThreadNew(StartCtoCTask, NULL, &CtoCTask_attributes);
+  /* creation of CanTask */
+  CanTaskHandle = osThreadNew(StartCanTask, NULL, &CanTask_attributes);
+
+  /* creation of TOTask */
+  TOTaskHandle = osThreadNew(StartTOTask, NULL, &TOTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
@@ -192,7 +208,7 @@ void StartRemoteTask(void *argument)
     if (osMessageQueueGet(rcDataQueueHandle, &current_rc_data, NULL, osWaitForever) == osOK)
     {
     // 处理遥控器数据
-    if (num>20)
+    if (num>25)
     {
     RC_Data_Print(&current_rc_data);
     printf("Remote Control Data Received\n");
@@ -204,22 +220,42 @@ void StartRemoteTask(void *argument)
   /* USER CODE END StartRemoteTask */
 }
 
-/* USER CODE BEGIN Header_StartCtoCTask */
+/* USER CODE BEGIN Header_StartCanTask */
 /**
-* @brief Function implementing the CtoCTask thread.
+* @brief Function implementing the CanTask thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartCtoCTask */
-void StartCtoCTask(void *argument)
+/* USER CODE END Header_StartCanTask */
+void StartCanTask(void *argument)
 {
-  /* USER CODE BEGIN StartCtoCTask */
+  /* USER CODE BEGIN StartCanTask */
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    Gimbal_CtoC_Remote();
+    // Motor_6020_Voltage1((int16_t)BigYaw_SpeedPID.OUT, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
+    Motor_6020_Voltage1(0, 0, 0, 0, &hcan2);
+    osDelay(10);
   }
-  /* USER CODE END StartCtoCTask */
+  /* USER CODE END StartCanTask */
+}
+
+/* USER CODE BEGIN Header_StartTOTask */
+/**
+* @brief Function implementing the TOTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTOTask */
+void StartTOTask(void *argument)
+{
+  /* USER CODE BEGIN StartTOTask */
+  Can_Filter_Init();
+  osDelay(10);
+  osThreadExit();
+  /* Infinite loop */
+  /* USER CODE END StartTOTask */
 }
 
 /* Private application code --------------------------------------------------*/
@@ -248,6 +284,77 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     }
 }
 
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+    CAN_RxHeaderTypeDef rx_header;
+    uint8_t rx_data[8];
+
+    // 读取接收到的消息
+    if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_data) != HAL_OK)
+        return; // 安全检查
+
+    // 只处理标准帧
+    if (rx_header.IDE != CAN_ID_STD)
+        return;
+
+    // 根据 CAN 外设实例区分总线
+    if (hcan == &hcan1)
+    {
+        switch (rx_header.StdId)
+			{
+					case 0x201:
+							CAN1_M3508_DataProcess(0x201,rx_data);break;
+					case 0x202:
+							CAN1_M3508_DataProcess(0x202,rx_data);break;
+					case 0x203:
+							break;
+					case 0x204:
+							break;
+					case 0x205:
+							break;
+					case 0x206:
+							CAN1_M6020_DataProcess(0x206,rx_data);break;
+					case 0x207:
+							CAN1_M2006_DataProcess(0x207,rx_data);break;
+					case 0x208:
+							break;
+					default:
+					{
+							break;
+					}
+			}
+    }
+    else if (hcan == &hcan2)
+    {
+				switch (rx_header.StdId)
+			{
+					case 0x201:
+							break;
+					case 0x202:
+							break;
+					case 0x203:
+							break;
+					case 0x204:
+							break;
+					case 0x205:
+							CAN2_M6020_DataProcess(0x205,rx_data);break;
+					case 0x206:
+							CAN2_M6020_DataProcess(0x206,rx_data);break;
+					case 0x207:
+							break;
+					case 0x208:
+							break;
+					case 0x146:
+							// CToC_AngleProcess(0x146,rx_data,&Can_BMI088_Data);
+              break;
+					default:
+					{
+							break;
+					}
+			}
+    }
+}
+
 int _write(int fd, char *ptr, int len)
 {
     HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
@@ -268,5 +375,6 @@ void RC_Data_Print(RC_ctrl_t *rc_data)
     //        rc_data->mouse.press_l, rc_data->mouse.press_r);
     printf("\n");
 }
+
 /* USER CODE END Application */
 
