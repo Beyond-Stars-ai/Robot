@@ -32,7 +32,8 @@
 // #include "usart.h"
 
 #include "remote_control.h"
-#include "Chassis_CtoC.h"
+#include "Gimbal_CtoC.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -215,7 +216,8 @@ void StartCtoCTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    Gimbal_CtoC_Remote();
+    osDelay(5);
   }
   /* USER CODE END StartCtoCTask */
 }
