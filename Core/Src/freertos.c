@@ -236,6 +236,7 @@ void StartCanTask(void *argument)
   for(;;)
   {
     Gimbal_CtoC_Remote();
+    Gimbal_Pitch_Control();
     // Motor_6020_Voltage1((int16_t)BigYaw_SpeedPID.OUT, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
     Motor_6020_Voltage1(0, 0, 0, 0, &hcan2);
     osDelay(10);
@@ -253,10 +254,14 @@ void StartCanTask(void *argument)
 void StartTOTask(void *argument)
 {
   /* USER CODE BEGIN StartTOTask */
-  Can_Filter_Init();
-  osDelay(10);
-  osThreadExit();
+  // Can_Filter_Init();
+  // osDelay(10);
+  // osThreadExit();
   /* Infinite loop */
+  for(;;)
+  {
+    osDelay(10);
+  }
   /* USER CODE END StartTOTask */
 }
 

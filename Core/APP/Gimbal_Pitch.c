@@ -25,27 +25,27 @@ void Gimbal_Pitch_Init(void)
   PID_PositionSetEkRange    (&Pitch_SpeedPID, -3.0f, 3.0f);
 }
 
-// void Gimbal_Pitch_Control(void)
-// {
-//     // ============更新位置目标（仅打杆时）============
-//         Pitch_PositionPID.Need_Value -= 0.01f * local_rc_ctrl->rc.ch[3];
+void Gimbal_Pitch_Control(void)
+{
+    // ============更新位置目标（仅打杆时）============
+        Pitch_PositionPID.Need_Value -= 0.01f * global_rc_control.rc.ch[3];
 
-//         // 限幅 [0, 4848]
-//         if (Pitch_PositionPID.Need_Value > 4500.0f)
-//             Pitch_PositionPID.Need_Value = 4500.0f;
-//         else if (Pitch_PositionPID.Need_Value < 3300.0f)
-//             Pitch_PositionPID.Need_Value = 3300.0f;
+        // 限幅 [0, 4848]
+        if (Pitch_PositionPID.Need_Value > 4500.0f)
+            Pitch_PositionPID.Need_Value = 4500.0f;
+        else if (Pitch_PositionPID.Need_Value < 3300.0f)
+            Pitch_PositionPID.Need_Value = 3300.0f;
 
-//     // ============位置环计算=========================
-//     PID_PositionCalc(&Pitch_PositionPID, Can1_M6020_MotorStatus[1].Position);
+    // ============位置环计算=========================
+    PID_PositionCalc(&Pitch_PositionPID, Can1_M6020_MotorStatus[1].Position);
 
 
-//     // ============速度环计算=========================
-//     PID_PositionSetNeedValue(&Pitch_SpeedPID, Pitch_PositionPID.OUT);//
-//     PID_PositionCalc(&Pitch_SpeedPID, Can1_M6020_MotorStatus[1].Speed);
+    // ============速度环计算=========================
+    PID_PositionSetNeedValue(&Pitch_SpeedPID, Pitch_PositionPID.OUT);//
+    PID_PositionCalc(&Pitch_SpeedPID, Can1_M6020_MotorStatus[1].Speed);
 
-//     // ============发送输出===========================
-//     Motor_6020_Voltage1(0, (int16_t)Pitch_SpeedPID.OUT, 0, 0, &hcan1);
-// }
+    // ============发送输出===========================
+    Motor_6020_Voltage1(0, (int16_t)Pitch_SpeedPID.OUT, 0, 0, &hcan1);
+}
 
 
