@@ -200,7 +200,6 @@ void StartRemoteTask(void *argument)
     }
     num++;
     }
-    osDelay(5);
   }
   /* USER CODE END StartRemoteTask */
 }
@@ -227,7 +226,7 @@ void StartCtoCTask(void *argument)
 /* USER CODE BEGIN Application */
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
-    if (huart->Instance == USART3 && Size > 0 && Size <= sizeof(receiveData))
+    if (huart->Instance == USART3)
     {
         // 直接解析到全局变量
         Message_Remote_to_rc(receiveData, &global_rc_control);
