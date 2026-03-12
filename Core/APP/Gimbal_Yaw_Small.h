@@ -3,7 +3,7 @@
 
 #include "PID.h"
 #include "Motor.h"
-// #include "Remote.h"
+#include "remote_control.h"
 #include "BSP_CAN.h"
 #include "BMI088.h"
 #include "Gimbal_PoseCalc.h"

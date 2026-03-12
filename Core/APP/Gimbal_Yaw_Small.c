@@ -12,19 +12,31 @@ extern BMI088_Init_typedef BigYaw_BMI088_Data;
 extern BMI088_Init_typedef SmallYaw_BMI088_Data;
 extern M6020_Motor Can1_M6020_MotorStatus[7];//GM6020电机状态数组
 extern M6020_Motor Can2_M6020_MotorStatus[7];//GM6020电机状态数组
-// extern RC_ctrl_t *local_rc_ctrl;
+extern RC_ctrl_t global_rc_control; // 全局遥控器数据
 
 void Gimbal_YawSmall_Init(void)
 {	
    PID_PositionStructureInit (&SmallYaw_GyroscopePID,0);        //外环小yaw角度环
-   PID_PositionSetParameter  (&SmallYaw_GyroscopePID,40,0,0);
-   PID_PositionSetOUTRange   (&SmallYaw_GyroscopePID,-20000,20000);
+   PID_PositionSetParameter  (&SmallYaw_GyroscopePID,8,0,0);
+   PID_PositionSetOUTRange   (&SmallYaw_GyroscopePID,-4000,4000);
 
-	PID_PositionStructureInit (&SmallYaw_SpeedPID,0);              //内环速度环
-   PID_PositionSetParameter  (&SmallYaw_SpeedPID,100,0,0);
-   PID_PositionSetOUTRange   (&SmallYaw_SpeedPID,-20000,20000);
+   PID_PositionStructureInit (&SmallYaw_SpeedPID,0);              //内环速度环
+   PID_PositionSetParameter  (&SmallYaw_SpeedPID,20,0,0);
+   PID_PositionSetOUTRange   (&SmallYaw_SpeedPID,-4000,4000);
    PID_PositionSetEkRange    (&SmallYaw_SpeedPID, -3.0f, 3.0f);
 }
+
+// void Gimbal_YawSmall_Init(void)
+// {	
+//    PID_PositionStructureInit (&SmallYaw_GyroscopePID,0);        //外环小yaw角度环
+//    PID_PositionSetParameter  (&SmallYaw_GyroscopePID,40,0,0);
+//    PID_PositionSetOUTRange   (&SmallYaw_GyroscopePID,-20000,20000);
+
+// 	PID_PositionStructureInit (&SmallYaw_SpeedPID,0);              //内环速度环
+//    PID_PositionSetParameter  (&SmallYaw_SpeedPID,100,0,0);
+//    PID_PositionSetOUTRange   (&SmallYaw_SpeedPID,-20000,20000);
+//    PID_PositionSetEkRange    (&SmallYaw_SpeedPID, -3.0f, 3.0f);
+// }
 
 // void Gimbal_YawSmall_Control(void)
 // {

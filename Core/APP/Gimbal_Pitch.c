@@ -7,7 +7,6 @@ PID_PositionInitTypedef Pitch_PositionPID;
 PID_PositionInitTypedef Pitch_SpeedPID;
 extern M6020_Motor Can1_M6020_MotorStatus[7];//GM6020电机状态数组
 extern M6020_Motor Can2_M6020_MotorStatus[7];//GM6020电机状态数组
-// extern RC_ctrl_t *local_rc_ctrl;
 extern RC_ctrl_t global_rc_control; // 全局遥控器数据
 
 
