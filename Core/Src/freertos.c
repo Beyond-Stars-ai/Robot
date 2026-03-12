@@ -32,7 +32,6 @@
 // #include "usart.h"
 
 #include "remote_control.h"
-#include "Chassis_CtoC.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,7 +48,6 @@ extern UART_HandleTypeDef huart3;
 /* USER CODE BEGIN PD */
 uint8_t receiveData[18];
 RC_ctrl_t global_rc_control; // 全局遥控器数据
-uint8_t num = 0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -159,9 +157,7 @@ void MX_FREERTOS_Init(void) {
 void StartDebugTask(void *argument)
 {
   /* USER CODE BEGIN StartDebugTask */
-    osDelay(10);
-    printf("Start Remote Task\r\n");
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
+    osDelay(100);
     /* Infinite loop */
     for (;;)
     {
@@ -186,18 +182,25 @@ void StartDebugTask(void *argument)
 void StartRemoteTask(void *argument)
 {
   /* USER CODE BEGIN StartRemoteTask */
-  RC_ctrl_t current_rc_data;
+  RC_ctrl_t current_rc_data = {0};
+  uint8_t num = 0;
+  osDelay(100);
   HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
-  __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT);
   /* Infinite loop */
   for(;;)
   {
     if (osMessageQueueGet(rcDataQueueHandle, &current_rc_data, NULL, osWaitForever) == osOK)
     {
     // 处理遥控器数据
+    if (num>20)
+    {
     RC_Data_Print(&current_rc_data);
+    printf("Remote Control Data Received\n");
+    num = 0;
     }
-    osDelay(1);
+    num++;
+    }
+    osDelay(5);
   }
   /* USER CODE END StartRemoteTask */
 }
@@ -261,9 +264,9 @@ void RC_Data_Print(RC_ctrl_t *rc_data)
            rc_data->rc.ch[2], rc_data->rc.ch[3], rc_data->rc.ch[4]);
     printf("Switch: %d,%d\n",
            rc_data->rc.s[0], rc_data->rc.s[1]);
-    printf("Mouse: x=%d,y=%d,z=%d,press=%d,%d\n",
-           rc_data->mouse.x, rc_data->mouse.y, rc_data->mouse.z,
-           rc_data->mouse.press_l, rc_data->mouse.press_r);
+    // printf("Mouse: x=%d,y=%d,z=%d,press=%d,%d\n",
+    //        rc_data->mouse.x, rc_data->mouse.y, rc_data->mouse.z,
+    //        rc_data->mouse.press_l, rc_data->mouse.press_r);
     printf("\n");
 }
 /* USER CODE END Application */

@@ -32,6 +32,7 @@ targets:
         - Drivers/CMSIS/Device/ST/STM32F4xx/Include
         - Drivers/CMSIS/Include
         - Core/Bsp
+        - Core/APP
       libList: []
     excludeList: []
     toolchain: GCC
@@ -98,7 +99,15 @@ targets:
         resetMode: default
         runAfterProgram: true
         speed: 4000
-    uploader: STLink
+      probe-rs:
+        allowEraseAll: false
+        baseAddr: "0x08000000"
+        bin: ""
+        otherOptions: ""
+        protocol: swd
+        speed: 0
+        target: STM32F407IG
+    uploader: probe-rs
   Release:
     cppPreprocessAttrs:
       defineList:
