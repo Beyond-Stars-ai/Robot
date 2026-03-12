@@ -7,7 +7,6 @@ srcDirs:
   - Core
   - Middlewares
   - Drivers
-  - Core/Task
 virtualFolder:
   name: <virtual_root>
   files: []
@@ -48,6 +47,8 @@ targets:
             ASM_FLAGS: -DDEBUG
           beforeBuildTasks: []
           c/cpp-compiler:
+            CXX_FLAGS: ""
+            C_FLAGS: ""
             language-c: c11
             language-cpp: c++11
             one-elf-section-per-data: true
@@ -56,14 +57,15 @@ targets:
             warnings: all-warnings
           global:
             $float-abi-type: hard
-            arm-thumb-mode: thumb
+            misc-control: []
             not-use-syscalls: true
             output-debug-info: enable
             use-newlib-nano: true
           linker:
             $outputTaskExcludes:
               - .bin
-            $toolName: auto
+            LD_FLAGS: ""
+            LIB_FLAGS: ""
             output-format: elf
             remove-unused-input-sections: true
         scatterFilePath: STM32F407IGHX_FLASH.ld
@@ -86,7 +88,17 @@ targets:
         bin: ""
         interface: cmsis-dap
         target: stm32f4x
-    uploader: OpenOCD
+      STLink:
+        address: "0x08000000"
+        bin: ""
+        elFile: None
+        optionBytes: .eide/debug.st.option.bytes.ini
+        otherCmds: ""
+        proType: SWD
+        resetMode: default
+        runAfterProgram: true
+        speed: 4000
+    uploader: STLink
   Release:
     cppPreprocessAttrs:
       defineList:
@@ -152,4 +164,19 @@ targets:
         otherCmds: ""
         proType: 1
         speed: 8000
-    uploader: JLink
+      OpenOCD:
+        baseAddr: "0x08000000"
+        bin: ""
+        interface: cmsis-dap
+        target: stm32f4x
+      STLink:
+        address: "0x08000000"
+        bin: ""
+        elFile: None
+        optionBytes: .eide/debug.st.option.bytes.ini
+        otherCmds: ""
+        proType: SWD
+        resetMode: default
+        runAfterProgram: true
+        speed: 4000
+    uploader: STLink

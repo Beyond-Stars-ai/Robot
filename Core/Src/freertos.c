@@ -32,7 +32,7 @@
 // #include "usart.h"
 
 #include "remote_control.h"
-#include "CToC.h"
+#include "Chassis_CtoC.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,16 +48,13 @@ extern UART_HandleTypeDef huart3;
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 uint8_t receiveData[18];
-
-// RC_ctrl_t rc_control = {0};
-
+RC_ctrl_t global_rc_control; // 全局遥控器数据
 uint8_t num = 0;
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+void RC_Data_Print(RC_ctrl_t *rc_data);
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -71,46 +68,24 @@ const osThreadAttr_t DebugTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for MoveTask */
-osThreadId_t MoveTaskHandle;
-const osThreadAttr_t MoveTask_attributes = {
-  .name = "MoveTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityHigh,
-};
-/* Definitions for TurnTask */
-osThreadId_t TurnTaskHandle;
-const osThreadAttr_t TurnTask_attributes = {
-  .name = "TurnTask",
+/* Definitions for RemoteTask */
+osThreadId_t RemoteTaskHandle;
+const osThreadAttr_t RemoteTask_attributes = {
+  .name = "RemoteTask",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for StatuTask */
-osThreadId_t StatuTaskHandle;
-const osThreadAttr_t StatuTask_attributes = {
-  .name = "StatuTask",
+/* Definitions for CtoCTask */
+osThreadId_t CtoCTaskHandle;
+const osThreadAttr_t CtoCTask_attributes = {
+  .name = "CtoCTask",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for Move_R_Queue */
-osMessageQueueId_t Move_R_QueueHandle;
-const osMessageQueueAttr_t Move_R_Queue_attributes = {
-  .name = "Move_R_Queue"
-};
-/* Definitions for Turn_Queue */
-osMessageQueueId_t Turn_QueueHandle;
-const osMessageQueueAttr_t Turn_Queue_attributes = {
-  .name = "Turn_Queue"
-};
-/* Definitions for Statu_Queue */
-osMessageQueueId_t Statu_QueueHandle;
-const osMessageQueueAttr_t Statu_Queue_attributes = {
-  .name = "Statu_Queue"
-};
-/* Definitions for Move_L_Queue */
-osMessageQueueId_t Move_L_QueueHandle;
-const osMessageQueueAttr_t Move_L_Queue_attributes = {
-  .name = "Move_L_Queue"
+/* Definitions for rcDataQueue */
+osMessageQueueId_t rcDataQueueHandle;
+const osMessageQueueAttr_t rcDataQueue_attributes = {
+  .name = "rcDataQueue"
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -119,9 +94,8 @@ const osMessageQueueAttr_t Move_L_Queue_attributes = {
 /* USER CODE END FunctionPrototypes */
 
 void StartDebugTask(void *argument);
-void StartMoveTask(void *argument);
-void StartTurnTask(void *argument);
-void StartStatuTask(void *argument);
+void StartRemoteTask(void *argument);
+void StartCtoCTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -148,17 +122,8 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
-  /* creation of Move_R_Queue */
-  Move_R_QueueHandle = osMessageQueueNew (16, sizeof(MOVE_BUFFER_SIZE), &Move_R_Queue_attributes);
-
-  /* creation of Turn_Queue */
-  Turn_QueueHandle = osMessageQueueNew (16, sizeof(TURN_BUFFER_SIZE), &Turn_Queue_attributes);
-
-  /* creation of Statu_Queue */
-  Statu_QueueHandle = osMessageQueueNew (16, sizeof(STATUS_BUFFER_SIZE), &Statu_Queue_attributes);
-
-  /* creation of Move_L_Queue */
-  Move_L_QueueHandle = osMessageQueueNew (16, sizeof(uint16_t), &Move_L_Queue_attributes);
+  /* creation of rcDataQueue */
+  rcDataQueueHandle = osMessageQueueNew (1, sizeof(RC_ctrl_t), &rcDataQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
@@ -168,14 +133,11 @@ void MX_FREERTOS_Init(void) {
   /* creation of DebugTask */
   DebugTaskHandle = osThreadNew(StartDebugTask, NULL, &DebugTask_attributes);
 
-  /* creation of MoveTask */
-  MoveTaskHandle = osThreadNew(StartMoveTask, NULL, &MoveTask_attributes);
+  /* creation of RemoteTask */
+  RemoteTaskHandle = osThreadNew(StartRemoteTask, NULL, &RemoteTask_attributes);
 
-  /* creation of TurnTask */
-  TurnTaskHandle = osThreadNew(StartTurnTask, NULL, &TurnTask_attributes);
-
-  /* creation of StatuTask */
-  StatuTaskHandle = osThreadNew(StartStatuTask, NULL, &StatuTask_attributes);
+  /* creation of CtoCTask */
+  CtoCTaskHandle = osThreadNew(StartCtoCTask, NULL, &CtoCTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
@@ -214,147 +176,69 @@ void StartDebugTask(void *argument)
   /* USER CODE END StartDebugTask */
 }
 
-/* USER CODE BEGIN Header_StartMoveTask */
+/* USER CODE BEGIN Header_StartRemoteTask */
 /**
- * @brief Function implementing the MoveTask thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_StartMoveTask */
-__weak void StartMoveTask(void *argument)
+* @brief Function implementing the RemoteTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartRemoteTask */
+void StartRemoteTask(void *argument)
 {
-  /* USER CODE BEGIN StartMoveTask */
-    uint8_t moveBuffer[MOVE_BUFFER_SIZE];
-    uint8_t turnBuffer[TURN_BUFFER_SIZE];
-    int16_t moveData[4];
-
-    /* Infinite loop */
-    for (;;)
+  /* USER CODE BEGIN StartRemoteTask */
+  RC_ctrl_t current_rc_data;
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
+  __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT);
+  /* Infinite loop */
+  for(;;)
+  {
+    if (osMessageQueueGet(rcDataQueueHandle, &current_rc_data, NULL, osWaitForever) == osOK)
     {
-        if (osMessageQueueGet(Move_R_QueueHandle, moveBuffer, NULL, osWaitForever) == osOK)
-        {
-            memcpy(&moveData[0], moveBuffer, sizeof(int16_t));
-            memcpy(&moveData[1], moveBuffer + sizeof(int16_t), sizeof(int16_t));
-
-        };
-        if (osMessageQueueGet(Move_L_QueueHandle, turnBuffer, NULL, osWaitForever) == osOK)
-        {
-            memcpy(&moveData[2], turnBuffer, sizeof(int16_t));
-            memcpy(&moveData[3], turnBuffer + sizeof(int16_t), sizeof(int16_t));
-
-        };
-        CToC_MasterSendData(moveData[0], moveData[1], moveData[2], moveData[3]);
+    // 处理遥控器数据
+    RC_Data_Print(&current_rc_data);
     }
-  /* USER CODE END StartMoveTask */
+    osDelay(1);
+  }
+  /* USER CODE END StartRemoteTask */
 }
 
-/* USER CODE BEGIN Header_StartTurnTask */
+/* USER CODE BEGIN Header_StartCtoCTask */
 /**
- * @brief Function implementing the TurnTask thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_StartTurnTask */
-__weak void StartTurnTask(void *argument)
+* @brief Function implementing the CtoCTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartCtoCTask */
+void StartCtoCTask(void *argument)
 {
-  /* USER CODE BEGIN StartTurnTask */
-    uint8_t turnBuffer[TURN_BUFFER_SIZE];
-    int16_t turnData[2];
-    /* Infinite loop */
-    for (;;)
-    {
-        if (osMessageQueueGet(Turn_QueueHandle, turnBuffer, NULL, osWaitForever) == osOK)
-        {
-            memcpy(&turnData[0], turnBuffer, sizeof(int16_t));
-            memcpy(&turnData[1], turnBuffer + sizeof(int16_t), sizeof(int16_t));
-            // 处理转向数据
-            // printf("Turn Data: %d, %d\r\n", turnData[0], turnData[1]);
-        };
-        osDelay(10);
-    }
-  /* USER CODE END StartTurnTask */
-}
-
-/* USER CODE BEGIN Header_StartStatuTask */
-/**
- * @brief Function implementing the StatuTask thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_StartStatuTask */
-__weak void StartStatuTask(void *argument)
-{
-  /* USER CODE BEGIN StartStatuTask */
-    uint8_t statusBuffer[STATUS_BUFFER_SIZE];
-    uint8_t statusData[2];
-    /* Infinite loop */
-    for (;;)
-    {
-        if (osMessageQueueGet(Statu_QueueHandle, statusBuffer, NULL, osWaitForever) == osOK)
-        {
-            memcpy(&statusData[0], statusBuffer, sizeof(uint8_t));
-            memcpy(&statusData[1], statusBuffer + sizeof(uint8_t), sizeof(uint8_t));
-            // 处理状态数据
-            // printf("Status Data: %d, %d\r\n", statusData[0], statusData[1]);
-        };
-    }
-  /* USER CODE END StartStatuTask */
+  /* USER CODE BEGIN StartCtoCTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartCtoCTask */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
-    uint8_t Message_Remote[18] = {0};
-    RC_ctrl_t rc_control = {0};
     if (huart->Instance == USART3 && Size > 0 && Size <= sizeof(receiveData))
     {
-        memcpy(Message_Remote, receiveData, Size);
-        Message_Remote_to_rc(Message_Remote, &rc_control);
-
-        // 调试显示
-        // num++;
-        // if (num >= 25)
-        // {
-        //     printf("Raw data: ");
-        //     for (int i = 0; i < Size; i++)
-        //     {
-        //         printf("%02X ", receiveData[i]);
-        //     }
-        //     printf("\r\n");
-        //     printf("RC Channels: %d,%d,%d,%d,%d\n",
-        //            rc_control.rc.ch[0], rc_control.rc.ch[1],
-        //            rc_control.rc.ch[2], rc_control.rc.ch[3], rc_control.rc.ch[4]);
-        //     printf("Switch: %d,%d\n",
-        //            rc_control.rc.s[0], rc_control.rc.s[1]);
-        //     num = 0;
-        // }
-
-        // 创建三个独立的缓冲区
-        uint8_t moveBuffer[MOVE_BUFFER_SIZE];
-        uint8_t turnBuffer[TURN_BUFFER_SIZE];
-        uint8_t statusBuffer[STATUS_BUFFER_SIZE];
-
-        // 移动数据
-        memcpy(moveBuffer, &rc_control.rc.ch[0], sizeof(int16_t));
-        memcpy(moveBuffer + sizeof(int16_t), &rc_control.rc.ch[1], sizeof(int16_t));
-        osMessageQueuePut(Move_R_QueueHandle, moveBuffer, 0, 0);
-
-        // 转向数据
-        memcpy(turnBuffer, &rc_control.rc.ch[2], sizeof(int16_t));
-        memcpy(turnBuffer + sizeof(int16_t), &rc_control.rc.ch[3], sizeof(int16_t));
-        osMessageQueuePut(Turn_QueueHandle, turnBuffer, 0, 0);
-        osMessageQueuePut(Move_L_QueueHandle, turnBuffer, 0, 0);
-
-        // 状态数据
-        memcpy(statusBuffer, &rc_control.rc.s[0], sizeof(uint8_t));
-        memcpy(statusBuffer + sizeof(uint8_t), &rc_control.rc.s[1], sizeof(uint8_t));
-        osMessageQueuePut(Statu_QueueHandle, statusBuffer, 0, 0);
-
-        // 清除 IDLE 中断标志
+        // 直接解析到全局变量
+        Message_Remote_to_rc(receiveData, &global_rc_control);
+        
+        // 通过队列发送数据
+        if (rcDataQueueHandle != NULL)
+        {
+            osMessageQueuePut(rcDataQueueHandle, &global_rc_control, 0, 0);
+        }
+        
+        // 清除IDLE中断标志
         __HAL_UART_CLEAR_IDLEFLAG(huart);
 
-        // 重新启动IT接收
+        // 重新启动DMA接收
         HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
 
         // 禁止半传送中断
@@ -366,6 +250,21 @@ int _write(int fd, char *ptr, int len)
 {
     HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
     return len;
+}
+
+void RC_Data_Print(RC_ctrl_t *rc_data)
+{
+    if (rc_data == NULL) return;
+    
+    printf("RC Channels: %d,%d,%d,%d,%d\n",
+           rc_data->rc.ch[0], rc_data->rc.ch[1],
+           rc_data->rc.ch[2], rc_data->rc.ch[3], rc_data->rc.ch[4]);
+    printf("Switch: %d,%d\n",
+           rc_data->rc.s[0], rc_data->rc.s[1]);
+    printf("Mouse: x=%d,y=%d,z=%d,press=%d,%d\n",
+           rc_data->mouse.x, rc_data->mouse.y, rc_data->mouse.z,
+           rc_data->mouse.press_l, rc_data->mouse.press_r);
+    printf("\n");
 }
 /* USER CODE END Application */
 
