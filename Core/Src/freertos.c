@@ -36,6 +36,7 @@
 #include "bsp_can.h"
 
 #include "Gimbal_CtoC.h"
+// #include "Gimbal_Yaw_Small.h"
 
 /* USER CODE END Includes */
 
@@ -118,6 +119,8 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
   Can_Filter_Init();
+
+  // Gimbal_YawSmall_Init();
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
