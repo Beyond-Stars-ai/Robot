@@ -37,7 +37,7 @@
 
 #include "Gimbal_CtoC.h"
 #include "Gimbal_Pitch.h"
-#include "Gimbal_Yaw_Small.h"
+#include "Gimbal_Yaw.h"
 
 /* USER CODE END Includes */
 
@@ -49,12 +49,18 @@ extern DMA_HandleTypeDef hdma_usart1_tx;
 extern DMA_HandleTypeDef hdma_usart3_rx;
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart3;
+
+extern M6020_Motor Can2_M6020_MotorStatus[7];
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 uint8_t receiveData[18];
 RC_ctrl_t global_rc_control; // 全局遥控器数据
+
+uint16_t origin_BigYaw_M = 0;
+uint16_t origin_SmallYaw_M = 0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -212,7 +218,7 @@ void StartRemoteTask(void *argument)
     if (osMessageQueueGet(rcDataQueueHandle, &current_rc_data, NULL, osWaitForever) == osOK)
     {
     // 处理遥控器数据
-    if (num>25)
+    if (num>1000)
     {
     RC_Data_Print(&current_rc_data);
     printf("Remote Control Data Received\n");
@@ -256,13 +262,15 @@ void StartCanTask(void *argument)
 void StartTOTask(void *argument)
 {
   /* USER CODE BEGIN StartTOTask */
-  // Can_Filter_Init();
-  // osDelay(10);
-  // osThreadExit();
+  uint16_t BigYaw_M = 0;
+  uint16_t SmallYaw_M = 0;
   /* Infinite loop */
   for(;;)
   {
-    osDelay(10);
+    BigYaw_M = Can2_M6020_MotorStatus[0].Angle;
+    SmallYaw_M = Can2_M6020_MotorStatus[1].Angle;
+    printf("BigYaw_M: %d, SmallYaw_M: %d\r\n", BigYaw_M, SmallYaw_M);
+    osDelay(50);
   }
   /* USER CODE END StartTOTask */
 }

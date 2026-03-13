@@ -1,4 +1,4 @@
-#include "Gimbal_Yaw_Small.h"
+#include "Gimbal_Yaw.h"
 #define SMALLYAW_MID 2424          //小yaw轴中位值
 #define SMALLYAW_LEFT 1650          //小yaw轴左侧最大偏移
 #define SMALLYAW_RIGHT 1650          //小yaw轴右侧最大偏移（顺时针减小）
@@ -70,5 +70,39 @@ void Gimbal_YawSmall_Init(void)
 // 	//====
 // 	// ============ 发送输出 ===========================
 // //    Motor_6020_Voltage1			(0, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
+// }
+
+// void Gimbal_YawBig_Init(void)
+// {
+// 	PID_PositionStructureInit (&BigYaw_PositionPID, 104);        //外环小yaw电机位置环 +2432
+//   PID_PositionSetParameter  (&BigYaw_PositionPID,0.5,0,0);
+// 	PID_PositionSetEkRange		(&BigYaw_PositionPID,-50,50);		//位置式PID设置误差为0阈值
+//   PID_PositionSetOUTRange   (&BigYaw_PositionPID,-20000,20000);
+//   // PID_PositionSetNeedValueRange(&BigYaw_PositionPID,4848,0);
+
+// 	PID_PositionStructureInit (&BigYaw_SpeedPID,0);              //内环速度环
+//   PID_PositionSetParameter  (&BigYaw_SpeedPID,45,0,0);
+// 	PID_PositionSetEkRange		(&BigYaw_PositionPID,-2,2);
+//   PID_PositionSetOUTRange   (&BigYaw_SpeedPID,-15000,15000);
+// }
+
+// void Gimbal_YawBig_Control(void)
+// {
+// //	
+// //		(Can2_M6020_MotorStatus[0].ANgle - 104) = BigYaw_BMI088_Data.Yaw
+		
+//     // ============ 1. 更新位置目标============
+//     // ============ 2. 位置环计算 =========================
+// 		PID_PositionCalc_Encoder(&BigYaw_PositionPID, Can2_M6020_MotorStatus[0].Angle);
+//     // ===================================================
+
+//     // ============ 3. 速度环计算 =========================
+//     PID_PositionSetNeedValue(&BigYaw_SpeedPID, BigYaw_PositionPID.OUT + 20);
+//     PID_PositionCalc				(&BigYaw_SpeedPID, Can2_M6020_MotorStatus[0].Speed);
+//     // ===================================================
+
+//     // ============ 4. 发送输出 ===========================
+// //    Motor_6020_Voltage1((int16_t)BigYaw_SpeedPID.OUT, 0, 0, 0, &hcan2);
+	
 // }
 

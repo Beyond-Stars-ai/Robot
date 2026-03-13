@@ -11,4 +11,7 @@
 void Gimbal_YawSmall_Init(void);
 // void Gimbal_YawSmall_Control(void);
 
+void Gimbal_YawBig_Init(void);
+// void Gimbal_YawBig_Control(void);
+
 #endif // __GIMBAL_YAW_SMALL_H

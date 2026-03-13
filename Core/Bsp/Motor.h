@@ -62,7 +62,7 @@ typedef struct           // 6020
     uint16_t Angle;      // GM6020电机机械角度
     int16_t Speed;       // GM6020电机转速
 
-    float ANgle;
+    float ANgle;        // 处理过的圆周角度
     uint8_t First_Flag; // GM6020电机首次接收标志位
     int64_t r;          // GM6020电机转过圈数(默认圈数只会出现0,1)
     int64_t Position;   // GM6020电机角度位置原始数据
