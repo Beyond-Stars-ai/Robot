@@ -42,16 +42,16 @@ void Gimbal_Control_Init(void)
     //---------- SmallYaw初始化 ----------
     virtual_SmallYaw = 0.0f;
 
-    // 提高位置环增益和输出限幅
+    // 位置环PID - 使用编码器循环计算
     PID_PositionStructureInit(&SmallYaw_PositionPID, (float)origin_SmallYaw_count);
-    PID_PositionSetParameter(&SmallYaw_PositionPID, 2.0f, 0.0f, 0.5f);   // kp:0.5->2.0, 加kd
-    PID_PositionSetOUTRange(&SmallYaw_PositionPID, -8000.0f, 8000.0f);   // 4000->8000
+    PID_PositionSetParameter(&SmallYaw_PositionPID, 0.5f, 0.0f, 0.0f);
+    PID_PositionSetOUTRange(&SmallYaw_PositionPID, -4000.0f, 4000.0f);
     PID_PositionSetEkRange(&SmallYaw_PositionPID, -5.0f, 5.0f);
 
-    // 提高速度环输出限幅
+    // 速度环PID
     PID_PositionStructureInit(&SmallYaw_SpeedPID, 0.0f);
-    PID_PositionSetParameter(&SmallYaw_SpeedPID, 40.0f, 0.0f, 0.0f);     // 20->40
-    PID_PositionSetOUTRange(&SmallYaw_SpeedPID, -20000.0f, 20000.0f);    // 10000->20000
+    PID_PositionSetParameter(&SmallYaw_SpeedPID, 20.0f, 0.0f, 0.0f);
+    PID_PositionSetOUTRange(&SmallYaw_SpeedPID, -10000.0f, 10000.0f);
     PID_PositionSetEkRange(&SmallYaw_SpeedPID, -3.0f, 3.0f);
 }
 
@@ -152,62 +152,62 @@ void Gimbal_SmallYaw_SetSpeedPID(float kp, float ki, float kd)
 
 //=========================== 调试打印函数 ===========================//
 
-void Gimbal_GetDebugData(Gimbal_Debug_Data_t *data)
-{
-    if (data == NULL) return;
+// void Gimbal_GetDebugData(Gimbal_Debug_Data_t *data)
+// {
+//     if (data == NULL) return;
     
-    // 遥控器
-    data->rc_ch2 = global_rc_control.rc.ch[2];
-    data->rc_ch3 = global_rc_control.rc.ch[3];
+//     // 遥控器
+//     data->rc_ch2 = global_rc_control.rc.ch[2];
+//     data->rc_ch3 = global_rc_control.rc.ch[3];
     
-    // SmallYaw
-    data->virtual_s_yaw = virtual_SmallYaw;
-    data->s_yaw_target = (int16_t)SmallYaw_PositionPID.Need_Value;
-    data->s_yaw_current = now_SmallYaw_count;
-    data->s_yaw_error = error_SmallYaw_count;
-    data->s_yaw_pos_out = SmallYaw_PositionPID.OUT;
-    data->s_yaw_speed_out = (int16_t)SmallYaw_SpeedPID.OUT;
+//     // SmallYaw
+//     data->virtual_s_yaw = virtual_SmallYaw;
+//     data->s_yaw_target = (int16_t)SmallYaw_PositionPID.Need_Value;
+//     data->s_yaw_current = now_SmallYaw_count;
+//     data->s_yaw_error = error_SmallYaw_count;
+//     data->s_yaw_pos_out = SmallYaw_PositionPID.OUT;
+//     data->s_yaw_speed_out = (int16_t)SmallYaw_SpeedPID.OUT;
     
-    // Pitch
-    data->p_target = Pitch_PositionPID.Need_Value;
-    data->p_current = Can1_M6020_MotorStatus[1].Position;
-    data->p_error = (int16_t)(data->p_target - data->p_current);
-    data->p_pos_out = Pitch_PositionPID.OUT;
-    data->p_speed_out = (int16_t)Pitch_SpeedPID.OUT;
-}
+//     // Pitch
+//     data->p_target = Pitch_PositionPID.Need_Value;
+//     data->p_current = Can1_M6020_MotorStatus[1].Position;
+//     data->p_error = (int16_t)(data->p_target - data->p_current);
+//     data->p_pos_out = Pitch_PositionPID.OUT;
+//     data->p_speed_out = (int16_t)Pitch_SpeedPID.OUT;
+// }
 
-void Gimbal_PrintDebug(void)
-{
-    Gimbal_Debug_Data_t dbg;
-    Gimbal_GetDebugData(&dbg);
+// void Gimbal_PrintDebug(void)
+// {
+//     Gimbal_Debug_Data_t dbg;
+//     Gimbal_GetDebugData(&dbg);
     
-    printf("=== Gimbal Debug ===\r\n");
-    printf("RC: ch2=%d ch3=%d\r\n", dbg.rc_ch2, dbg.rc_ch3);
-    printf("SmallYaw: v=%.1f tgt=%d cur=%d err=%d p_out=%.1f s_out=%d\r\n",
-           dbg.virtual_s_yaw, dbg.s_yaw_target, dbg.s_yaw_current, 
-           dbg.s_yaw_error, dbg.s_yaw_pos_out, dbg.s_yaw_speed_out);
-    printf("Pitch: tgt=%.1f cur=%lld err=%d p_out=%.1f s_out=%d\r\n",
-           dbg.p_target, dbg.p_current, dbg.p_error,
-           dbg.p_pos_out, dbg.p_speed_out);
-}
+//     printf("=== Gimbal Debug ===\r\n");
+//     printf("RC: ch2=%d ch3=%d\r\n", dbg.rc_ch2, dbg.rc_ch3);
+//     printf("SmallYaw: v=%.1f tgt=%d cur=%d err=%d p_out=%.1f s_out=%d\r\n",
+//            dbg.virtual_s_yaw, dbg.s_yaw_target, dbg.s_yaw_current, 
+//            dbg.s_yaw_error, dbg.s_yaw_pos_out, dbg.s_yaw_speed_out);
+//     printf("Pitch: tgt=%.1f cur=%lld err=%d p_out=%.1f s_out=%d\r\n",
+//            dbg.p_target, dbg.p_current, dbg.p_error,
+//            dbg.p_pos_out, dbg.p_speed_out);
+// }
 
-void Gimbal_PrintDebug_SmallYaw(void)
-{
-    Gimbal_Debug_Data_t dbg;
-    Gimbal_GetDebugData(&dbg);
+// void Gimbal_PrintDebug_SmallYaw(void)
+// {
+//     Gimbal_Debug_Data_t dbg;
+//     Gimbal_GetDebugData(&dbg);
     
-    printf("[SmallYaw] RC=%d v=%.1f tgt=%d cur=%d err=%d p_out=%.1f s_out=%d\r\n",
-           dbg.rc_ch2, dbg.virtual_s_yaw, dbg.s_yaw_target, 
-           dbg.s_yaw_current, dbg.s_yaw_error, 
-           dbg.s_yaw_pos_out, dbg.s_yaw_speed_out);
-}
+//     printf("[SmallYaw] RC=%d v=%.1f tgt=%d cur=%d err=%d p_out=%.1f s_out=%d\r\n",
+//            dbg.rc_ch2, dbg.virtual_s_yaw, dbg.s_yaw_target, 
+//            dbg.s_yaw_current, dbg.s_yaw_error, 
+//            dbg.s_yaw_pos_out, dbg.s_yaw_speed_out);
+// }
 
-void Gimbal_PrintDebug_Pitch(void)
-{
-    Gimbal_Debug_Data_t dbg;
-    Gimbal_GetDebugData(&dbg);
+// void Gimbal_PrintDebug_Pitch(void)
+// {
+//     Gimbal_Debug_Data_t dbg;
+//     Gimbal_GetDebugData(&dbg);
     
-    printf("[Pitch] RC=%d tgt=%.1f cur=%lld err=%d p_out=%.1f s_out=%d\r\n",
-           dbg.rc_ch3, dbg.p_target, dbg.p_current, 
-           dbg.p_error, dbg.p_pos_out, dbg.p_speed_out);
-}
+//     printf("[Pitch] RC=%d tgt=%.1f cur=%lld err=%d p_out=%.1f s_out=%d\r\n",
+//            dbg.rc_ch3, dbg.p_target, dbg.p_current, 
+//            dbg.p_error, dbg.p_pos_out, dbg.p_speed_out);
+// }
