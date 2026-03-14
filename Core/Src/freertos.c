@@ -39,6 +39,8 @@
 #include "Gimbal_Pitch.h"
 #include "Gimbal_Yaw.h"
 
+#include "new_Gimbal_Yaw.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,8 +61,14 @@ extern M6020_Motor Can2_M6020_MotorStatus[7];
 uint8_t receiveData[18];
 RC_ctrl_t global_rc_control; // 全局遥控器数据
 
-uint16_t origin_BigYaw_M = 0;
-uint16_t origin_SmallYaw_M = 0;
+int16_t origin_BigYaw_count = 6537;
+int16_t origin_SmallYaw_count = 2233;
+
+int16_t now_BigYaw_count = 0;
+int16_t now_SmallYaw_count = 0;
+
+int16_t error_BigYaw_count = 0;
+int16_t error_SmallYaw_count = 0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -128,6 +136,11 @@ void MX_FREERTOS_Init(void) {
   Can_Filter_Init();
   Gimbal_Pitch_Init();
   Gimbal_YawSmall_Init();
+
+  // 清除接收缓冲区
+  memset(receiveData, 0, sizeof(receiveData));
+
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -210,15 +223,13 @@ void StartRemoteTask(void *argument)
   /* USER CODE BEGIN StartRemoteTask */
   RC_ctrl_t current_rc_data = {0};
   uint8_t num = 0;
-  osDelay(100);
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
   /* Infinite loop */
   for(;;)
   {
     if (osMessageQueueGet(rcDataQueueHandle, &current_rc_data, NULL, osWaitForever) == osOK)
     {
     // 处理遥控器数据
-    if (num>20)
+    if (num>1000)
     {
     RC_Data_Print(&current_rc_data);
     printf("Remote Control Data Received\n");
@@ -262,14 +273,23 @@ void StartCanTask(void *argument)
 void StartTOTask(void *argument)
 {
   /* USER CODE BEGIN StartTOTask */
+  osDelay(100);
+  now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
+  now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
 
+  error_BigYaw_count = now_BigYaw_count - origin_BigYaw_count;
+  error_SmallYaw_count = now_SmallYaw_count - origin_SmallYaw_count;
   /* Infinite loop */
   for(;;)
   {
-    // BigYaw_M = Can2_M6020_MotorStatus[0].Angle;
-    // SmallYaw_M = Can2_M6020_MotorStatus[1].Angle;
-    // printf("BigYaw_M: %d, SmallYaw_M: %d\r\n", BigYaw_M, SmallYaw_M);
-    osDelay(50);
+    // now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
+    // now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
+    error_BigYaw_count = now_BigYaw_count - origin_BigYaw_count;
+    error_SmallYaw_count = now_SmallYaw_count - origin_SmallYaw_count;
+    // printf("origin_BigYaw_count: %d, origin_SmallYaw_count: %d\r\n", origin_BigYaw_count, origin_SmallYaw_count);
+    printf("BigYaw_M: %d, SmallYaw_M: %d\r\n", error_BigYaw_count, error_SmallYaw_count);
+    // printf("now_BigYaw_count: %d, now_SmallYaw_count: %d\r\n", now_BigYaw_count, now_SmallYaw_count);
+    osDelay(200);
   }
   /* USER CODE END StartTOTask */
 }
@@ -299,6 +319,24 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT);
     }
 }
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART3)
+    {
+        // 打印错误信息
+        printf("UART Error: 0x%02lX\n", huart->ErrorCode);
+
+        // 清除错误标志
+        __HAL_UART_CLEAR_FLAG(huart, UART_FLAG_PE | UART_FLAG_FE | UART_FLAG_NE | UART_FLAG_ORE);
+        
+        // 重新初始化UART接收
+        memset(receiveData, 0, sizeof(receiveData));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
+        __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT);
+    }
+}
+
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
