@@ -26,6 +26,8 @@ extern PID_PositionInitTypedef Pitch_PositionPID;
 extern PID_PositionInitTypedef Pitch_SpeedPID;
 extern PID_PositionInitTypedef SmallYaw_PositionPID;
 extern PID_PositionInitTypedef SmallYaw_SpeedPID;
+extern PID_PositionInitTypedef BigYaw_PositionPID;
+extern PID_PositionInitTypedef BigYaw_SpeedPID;
 
 //=========================== 配置参数（可调）===========================//
 
@@ -72,12 +74,15 @@ void Gimbal_Control_Loop(void);
 // 单独控制函数
 void Gimbal_Pitch_Control(void);
 void Gimbal_SmallYaw_Control(void);
+void Gimbal_BigYaw_Control(void);
 
 // PID调试
 void Gimbal_Pitch_SetPosPID(float kp, float ki, float kd);
 void Gimbal_Pitch_SetSpeedPID(float kp, float ki, float kd);
 void Gimbal_SmallYaw_SetPosPID(float kp, float ki, float kd);
 void Gimbal_SmallYaw_SetSpeedPID(float kp, float ki, float kd);
+void Gimbal_BigYaw_SetPosPID(float kp, float ki, float kd);
+void Gimbal_BigYaw_SetSpeedPID(float kp, float ki, float kd);
 
 // 调试打印
 void Gimbal_GetDebugData(Gimbal_Debug_Data_t *data);

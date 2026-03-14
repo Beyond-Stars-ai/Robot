@@ -1,8 +1,6 @@
 #include "Gimbal_Control.h"
 #include "can.h"
 #include <math.h>
-#include <stdio.h>
-#include <string.h>
 
 //=========================== PID定义 ===========================//
 
@@ -10,10 +8,13 @@ PID_PositionInitTypedef Pitch_PositionPID;
 PID_PositionInitTypedef Pitch_SpeedPID;
 PID_PositionInitTypedef SmallYaw_PositionPID;
 PID_PositionInitTypedef SmallYaw_SpeedPID;
+PID_PositionInitTypedef BigYaw_PositionPID;
+PID_PositionInitTypedef BigYaw_SpeedPID;
 
 //=========================== 内部变量 ===========================//
 
 static float virtual_SmallYaw = 0.0f;       // SmallYaw虚拟坐标（0=机械中值，向右为正）
+static int16_t big_yaw_output = 0;          // BigYaw输出缓存
 
 //=========================== 工具函数 ===========================//
 
@@ -42,24 +43,35 @@ void Gimbal_Control_Init(void)
     //---------- SmallYaw初始化 ----------
     virtual_SmallYaw = 0.0f;
 
-    // 位置环PID - 使用编码器循环计算
     PID_PositionStructureInit(&SmallYaw_PositionPID, (float)origin_SmallYaw_count);
     PID_PositionSetParameter(&SmallYaw_PositionPID, 0.5f, 0.0f, 0.0f);
     PID_PositionSetOUTRange(&SmallYaw_PositionPID, -4000.0f, 4000.0f);
     PID_PositionSetEkRange(&SmallYaw_PositionPID, -5.0f, 5.0f);
 
-    // 速度环PID
     PID_PositionStructureInit(&SmallYaw_SpeedPID, 0.0f);
     PID_PositionSetParameter(&SmallYaw_SpeedPID, 20.0f, 0.0f, 0.0f);
     PID_PositionSetOUTRange(&SmallYaw_SpeedPID, -10000.0f, 10000.0f);
     PID_PositionSetEkRange(&SmallYaw_SpeedPID, -3.0f, 3.0f);
+
+    //---------- BigYaw初始化 ----------
+    big_yaw_output = 0;
+
+    PID_PositionStructureInit(&BigYaw_PositionPID, (float)origin_BigYaw_count);
+    PID_PositionSetParameter(&BigYaw_PositionPID, 0.8f, 0.0f, 0.0f);
+    PID_PositionSetOUTRange(&BigYaw_PositionPID, -6000.0f, 6000.0f);
+    PID_PositionSetEkRange(&BigYaw_PositionPID, -5.0f, 5.0f);
+
+    PID_PositionStructureInit(&BigYaw_SpeedPID, 0.0f);
+    PID_PositionSetParameter(&BigYaw_SpeedPID, 30.0f, 0.0f, 0.0f);
+    PID_PositionSetOUTRange(&BigYaw_SpeedPID, -20000.0f, 20000.0f);
+    PID_PositionSetEkRange(&BigYaw_SpeedPID, -3.0f, 3.0f);
 }
 
 //=========================== Pitch控制 ===========================//
 
 void Gimbal_Pitch_Control(void)
 {
-    // ============更新位置目标（遥控器模式）============
+    // ============更新位置目标============
     Pitch_PositionPID.Need_Value -= PITCH_RC_SENS * global_rc_control.rc.ch[PITCH_RC_CHANNEL];
 
     // 限幅
@@ -88,7 +100,6 @@ void Gimbal_SmallYaw_Control(void)
     float current_speed = (float)Can2_M6020_MotorStatus[1].Speed;
 
     // ============ 1. 遥控器更新虚拟坐标 ============
-    // ch[2]已偏移（中位=0），向右打杆为正，向左为负
     float delta = SMALLYAW_RC_SENS * global_rc_control.rc.ch[SMALLYAW_RC_CHANNEL];
     virtual_SmallYaw += delta;
 
@@ -96,36 +107,73 @@ void Gimbal_SmallYaw_Control(void)
     virtual_SmallYaw = limit_value(virtual_SmallYaw, -SMALLYAW_VIRTUAL_LIMIT, SMALLYAW_VIRTUAL_LIMIT);
 
     // ============ 2. 虚拟坐标 → 实际目标编码 ============
-    // SmallYaw机械向性：向右转编码减小，所以 目标 = 中值 - 虚拟值
+    // SmallYaw: 向右转编码减小，目标 = 中值 - 虚拟值
     float target_angle = (float)origin_SmallYaw_count - virtual_SmallYaw;
 
     // 归一化到0-8191
     while (target_angle < 0.0f) target_angle += 8192.0f;
     while (target_angle >= 8192.0f) target_angle -= 8192.0f;
 
-    // ============ 3. 更新状态变量（供调试）============
+    // ============ 3. 更新状态变量 ============
     now_SmallYaw_count = (int16_t)current_angle;
     error_SmallYaw_count = (int16_t)(target_angle - current_angle);
 
-    // ============ 4. 位置环计算（编码器循环模式）============
+    // ============ 4. 位置环计算 ============
     PID_PositionSetNeedValue(&SmallYaw_PositionPID, target_angle);
     PID_PositionCalc_Encoder(&SmallYaw_PositionPID, current_angle);
 
     // ============ 5. 速度环计算 ============
     PID_PositionSetNeedValue(&SmallYaw_SpeedPID, SmallYaw_PositionPID.OUT);
     PID_PositionCalc(&SmallYaw_SpeedPID, current_speed);
+    
+    // 输出保存在SmallYaw_SpeedPID.OUT中，由Control_Loop统一发送
+}
 
-    // ============ 6. 发送输出 ============
-    // SmallYaw是ID 0x206，对应Voltage1的第2路，CAN2
-    Motor_6020_Voltage1(0, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
+//=========================== BigYaw控制（跟随SmallYaw）===========================//
+
+void Gimbal_BigYaw_Control(void)
+{
+    // 获取当前编码器和速度
+    float current_angle = (float)Can2_M6020_MotorStatus[0].Angle;
+    float current_speed = (float)Can2_M6020_MotorStatus[0].Speed;
+
+    // ============ 目标计算：跟随SmallYaw虚拟坐标 ============
+    // BigYaw: 向右转编码增加，目标 = 中值 + 虚拟值
+    float target_angle = (float)origin_BigYaw_count + virtual_SmallYaw;
+
+    // 归一化到0-8191
+    while (target_angle < 0.0f) target_angle += 8192.0f;
+    while (target_angle >= 8192.0f) target_angle -= 8192.0f;
+
+    // ============ 更新状态变量 ============
+    now_BigYaw_count = (int16_t)current_angle;
+    error_BigYaw_count = (int16_t)(target_angle - current_angle);
+
+    // ============ 位置环计算 ============
+    PID_PositionSetNeedValue(&BigYaw_PositionPID, target_angle);
+    PID_PositionCalc_Encoder(&BigYaw_PositionPID, current_angle);
+
+    // ============ 速度环计算 ============
+    PID_PositionSetNeedValue(&BigYaw_SpeedPID, BigYaw_PositionPID.OUT);
+    PID_PositionCalc(&BigYaw_SpeedPID, current_speed);
+
+    // ============ 保存输出 ============
+    big_yaw_output = (int16_t)BigYaw_SpeedPID.OUT;
 }
 
 //=========================== 总控制循环 ===========================//
 
 void Gimbal_Control_Loop(void)
 {
+    // Pitch控制（CAN1单独发送）
     Gimbal_Pitch_Control();
+    
+    // Yaw轴控制（先计算两个轴）
     Gimbal_SmallYaw_Control();
+    Gimbal_BigYaw_Control();
+    
+    // 合并发送：BigYaw(ID 0x205, 第1路), SmallYaw(ID 0x206, 第2路)
+    Motor_6020_Voltage1(big_yaw_output, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
 }
 
 //=========================== PID调试接口 ===========================//
@@ -150,64 +198,12 @@ void Gimbal_SmallYaw_SetSpeedPID(float kp, float ki, float kd)
     PID_PositionSetParameter(&SmallYaw_SpeedPID, kp, ki, kd);
 }
 
-//=========================== 调试打印函数 ===========================//
+void Gimbal_BigYaw_SetPosPID(float kp, float ki, float kd)
+{
+    PID_PositionSetParameter(&BigYaw_PositionPID, kp, ki, kd);
+}
 
-// void Gimbal_GetDebugData(Gimbal_Debug_Data_t *data)
-// {
-//     if (data == NULL) return;
-    
-//     // 遥控器
-//     data->rc_ch2 = global_rc_control.rc.ch[2];
-//     data->rc_ch3 = global_rc_control.rc.ch[3];
-    
-//     // SmallYaw
-//     data->virtual_s_yaw = virtual_SmallYaw;
-//     data->s_yaw_target = (int16_t)SmallYaw_PositionPID.Need_Value;
-//     data->s_yaw_current = now_SmallYaw_count;
-//     data->s_yaw_error = error_SmallYaw_count;
-//     data->s_yaw_pos_out = SmallYaw_PositionPID.OUT;
-//     data->s_yaw_speed_out = (int16_t)SmallYaw_SpeedPID.OUT;
-    
-//     // Pitch
-//     data->p_target = Pitch_PositionPID.Need_Value;
-//     data->p_current = Can1_M6020_MotorStatus[1].Position;
-//     data->p_error = (int16_t)(data->p_target - data->p_current);
-//     data->p_pos_out = Pitch_PositionPID.OUT;
-//     data->p_speed_out = (int16_t)Pitch_SpeedPID.OUT;
-// }
-
-// void Gimbal_PrintDebug(void)
-// {
-//     Gimbal_Debug_Data_t dbg;
-//     Gimbal_GetDebugData(&dbg);
-    
-//     printf("=== Gimbal Debug ===\r\n");
-//     printf("RC: ch2=%d ch3=%d\r\n", dbg.rc_ch2, dbg.rc_ch3);
-//     printf("SmallYaw: v=%.1f tgt=%d cur=%d err=%d p_out=%.1f s_out=%d\r\n",
-//            dbg.virtual_s_yaw, dbg.s_yaw_target, dbg.s_yaw_current, 
-//            dbg.s_yaw_error, dbg.s_yaw_pos_out, dbg.s_yaw_speed_out);
-//     printf("Pitch: tgt=%.1f cur=%lld err=%d p_out=%.1f s_out=%d\r\n",
-//            dbg.p_target, dbg.p_current, dbg.p_error,
-//            dbg.p_pos_out, dbg.p_speed_out);
-// }
-
-// void Gimbal_PrintDebug_SmallYaw(void)
-// {
-//     Gimbal_Debug_Data_t dbg;
-//     Gimbal_GetDebugData(&dbg);
-    
-//     printf("[SmallYaw] RC=%d v=%.1f tgt=%d cur=%d err=%d p_out=%.1f s_out=%d\r\n",
-//            dbg.rc_ch2, dbg.virtual_s_yaw, dbg.s_yaw_target, 
-//            dbg.s_yaw_current, dbg.s_yaw_error, 
-//            dbg.s_yaw_pos_out, dbg.s_yaw_speed_out);
-// }
-
-// void Gimbal_PrintDebug_Pitch(void)
-// {
-//     Gimbal_Debug_Data_t dbg;
-//     Gimbal_GetDebugData(&dbg);
-    
-//     printf("[Pitch] RC=%d tgt=%.1f cur=%lld err=%d p_out=%.1f s_out=%d\r\n",
-//            dbg.rc_ch3, dbg.p_target, dbg.p_current, 
-//            dbg.p_error, dbg.p_pos_out, dbg.p_speed_out);
-// }
+void Gimbal_BigYaw_SetSpeedPID(float kp, float ki, float kd)
+{
+    PID_PositionSetParameter(&BigYaw_SpeedPID, kp, ki, kd);
+}
