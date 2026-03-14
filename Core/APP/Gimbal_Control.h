@@ -27,7 +27,7 @@ extern PID_PositionInitTypedef Pitch_SpeedPID;
 extern PID_PositionInitTypedef SmallYaw_PositionPID;
 extern PID_PositionInitTypedef SmallYaw_SpeedPID;
 
-//=========================== 配置参数 ===========================//
+//=========================== 配置参数（可调）===========================//
 
 // Pitch轴 - CAN1, ID 0x206, 索引1
 #define PITCH_RC_CHANNEL        3
@@ -37,8 +37,32 @@ extern PID_PositionInitTypedef SmallYaw_SpeedPID;
 
 // SmallYaw轴 - CAN2, ID 0x206, 索引1
 #define SMALLYAW_RC_CHANNEL     2
-#define SMALLYAW_RC_SENS        0.08f
-#define SMALLYAW_VIRTUAL_LIMIT  1500.0f
+#define SMALLYAW_RC_SENS        0.5f        // 灵敏度提高10倍（原0.05）
+#define SMALLYAW_VIRTUAL_LIMIT  4000.0f     // 限幅放宽（原1500）
+
+//=========================== 调试数据结构 ===========================//
+
+typedef struct {
+    // 遥控器
+    int16_t rc_ch2;             // yaw通道原始值
+    int16_t rc_ch3;             // pitch通道原始值
+    
+    // SmallYaw
+    float virtual_s_yaw;        // 虚拟坐标
+    int16_t s_yaw_target;       // 目标编码值
+    int16_t s_yaw_current;      // 当前编码值
+    int16_t s_yaw_error;        // 误差
+    int16_t s_yaw_speed_out;    // 速度环输出
+    float s_yaw_pos_out;        // 位置环输出
+    
+    // Pitch
+    float p_target;             // 目标位置
+    int64_t p_current;          // 当前位置
+    int16_t p_error;            // 误差
+    int16_t p_speed_out;        // 速度环输出
+    float p_pos_out;            // 位置环输出
+    
+} Gimbal_Debug_Data_t;
 
 //=========================== 接口函数 ===========================//
 
@@ -54,5 +78,11 @@ void Gimbal_Pitch_SetPosPID(float kp, float ki, float kd);
 void Gimbal_Pitch_SetSpeedPID(float kp, float ki, float kd);
 void Gimbal_SmallYaw_SetPosPID(float kp, float ki, float kd);
 void Gimbal_SmallYaw_SetSpeedPID(float kp, float ki, float kd);
+
+// 调试打印
+void Gimbal_GetDebugData(Gimbal_Debug_Data_t *data);
+void Gimbal_PrintDebug(void);
+void Gimbal_PrintDebug_SmallYaw(void);   // 只打印SmallYaw
+void Gimbal_PrintDebug_Pitch(void);      // 只打印Pitch
 
 #endif // __GIMBAL_CONTROL_H

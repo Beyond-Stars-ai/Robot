@@ -290,8 +290,8 @@ void StartTOTask(void *argument)
   {
     // now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
     // now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
-    error_BigYaw_count = now_BigYaw_count - origin_BigYaw_count;
-    error_SmallYaw_count = now_SmallYaw_count - origin_SmallYaw_count;
+    // error_BigYaw_count = now_BigYaw_count - origin_BigYaw_count;
+    // error_SmallYaw_count = now_SmallYaw_count - origin_SmallYaw_count;
     // printf("origin_BigYaw_count: %d, origin_SmallYaw_count: %d\r\n", origin_BigYaw_count, origin_SmallYaw_count);
     // printf("BigYaw_M: %d, SmallYaw_M: %d\r\n", error_BigYaw_count, error_SmallYaw_count);
     // printf("now_BigYaw_count: %d, now_SmallYaw_count: %d\r\n", now_BigYaw_count, now_SmallYaw_count);
