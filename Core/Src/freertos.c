@@ -37,7 +37,7 @@
 
 #include "Gimbal_CtoC.h"
 #include "Gimbal_Control.h"
-#include "Gimbal_SmallYaw.h"
+// #include "Gimbal_SmallYaw.h"
 // #include "Gimbal_Pitch.h"
 // #include "Gimbal_Yaw.h"
 // #include "new_Gimbal_Yaw.h"
@@ -135,10 +135,9 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
   Can_Filter_Init();
-  // Gimbal_Pitch_Init();
   // Gimbal_YawSmall_Init();
   Gimbal_Control_Init();
-  Gimbal_SmallYaw_Init();
+  // Gimbal_SmallYaw_Init();
 
   // 清除接收缓冲区
   memset(receiveData, 0, sizeof(receiveData));
@@ -260,8 +259,8 @@ void StartCanTask(void *argument)
   {
     Gimbal_CtoC_Remote();
     Gimbal_Control_Loop();
-    Gimbal_SmallYaw_Control();
-    
+    // Gimbal_SmallYaw_Control();
+
     // Gimbal_Pitch_Control();
     // Motor_6020_Voltage1((int16_t)BigYaw_SpeedPID.OUT, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
     Motor_6020_Voltage1(0, 0, 0, 0, &hcan2);
