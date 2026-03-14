@@ -187,7 +187,7 @@ void StartDebugTask(void *argument)
     /* Infinite loop */
     for (;;)
     {
-        printf("hello world\r\n");
+        // printf("hello world\r\n");
         HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
         osDelay(750);
         HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
@@ -218,7 +218,7 @@ void StartRemoteTask(void *argument)
     if (osMessageQueueGet(rcDataQueueHandle, &current_rc_data, NULL, osWaitForever) == osOK)
     {
     // 处理遥控器数据
-    if (num>1000)
+    if (num>20)
     {
     RC_Data_Print(&current_rc_data);
     printf("Remote Control Data Received\n");
@@ -262,14 +262,13 @@ void StartCanTask(void *argument)
 void StartTOTask(void *argument)
 {
   /* USER CODE BEGIN StartTOTask */
-  uint16_t BigYaw_M = 0;
-  uint16_t SmallYaw_M = 0;
+
   /* Infinite loop */
   for(;;)
   {
-    BigYaw_M = Can2_M6020_MotorStatus[0].Angle;
-    SmallYaw_M = Can2_M6020_MotorStatus[1].Angle;
-    printf("BigYaw_M: %d, SmallYaw_M: %d\r\n", BigYaw_M, SmallYaw_M);
+    // BigYaw_M = Can2_M6020_MotorStatus[0].Angle;
+    // SmallYaw_M = Can2_M6020_MotorStatus[1].Angle;
+    // printf("BigYaw_M: %d, SmallYaw_M: %d\r\n", BigYaw_M, SmallYaw_M);
     osDelay(50);
   }
   /* USER CODE END StartTOTask */
