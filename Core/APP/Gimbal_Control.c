@@ -1,28 +1,32 @@
-#include "Gimbal_Pitch.h"
-#define PITCH_MID 2424          //小yaw轴中位值
-#define PITCH_LEFT 1650          //小yaw轴左侧最大偏移
-#define PITCH_RIGHT 1650          //小yaw轴右侧最大偏移（顺时针减小）
+#include "Gimbal_Control.h"
+#include "can.h"
+#include <math.h>
+
+//=========================== PID定义 ===========================//
 
 PID_PositionInitTypedef Pitch_PositionPID;
 PID_PositionInitTypedef Pitch_SpeedPID;
-extern M6020_Motor Can1_M6020_MotorStatus[7];//GM6020电机状态数组
-extern M6020_Motor Can2_M6020_MotorStatus[7];//GM6020电机状态数组
-extern RC_ctrl_t global_rc_control; // 全局遥控器数据
 
-
+//=========================== 初始化 ===========================//
 
 void Gimbal_Pitch_Init(void)
 {
-	PID_PositionStructureInit (&Pitch_PositionPID,4074);        //外环位置环
+  PID_PositionStructureInit (&Pitch_PositionPID,4074);        //外环位置环
   PID_PositionSetParameter  (&Pitch_PositionPID,0.5,0,0);
   PID_PositionSetOUTRange   (&Pitch_PositionPID,-400,400);
-  // PID_PositionSetNeedValueRange(&Pitch_PositionPID,4848,0);
 
-	PID_PositionStructureInit (&Pitch_SpeedPID,0);              //内环速度环
+  PID_PositionStructureInit (&Pitch_SpeedPID,0);              //内环速度环
   PID_PositionSetParameter  (&Pitch_SpeedPID,50,0,0);
   PID_PositionSetOUTRange   (&Pitch_SpeedPID,-20000,20000);
   PID_PositionSetEkRange    (&Pitch_SpeedPID, -3.0f, 3.0f);
 }
+
+void Gimbal_Control_Init(void)
+{
+    Gimbal_Pitch_Init();
+}
+
+//=========================== Pitch控制（回退到原版）===========================//
 
 void Gimbal_Pitch_Control(void)
 {
@@ -47,4 +51,22 @@ void Gimbal_Pitch_Control(void)
     Motor_6020_Voltage1(0, (int16_t)Pitch_SpeedPID.OUT, 0, 0, &hcan1);
 }
 
+//=========================== 总控制循环 ===========================//
 
+void Gimbal_Control_Loop(void)
+{
+    Gimbal_Pitch_Control();
+    // Yaw轴后续添加
+}
+
+//=========================== PID调试接口 ===========================//
+
+void Gimbal_Pitch_SetPosPID(float kp, float ki, float kd)
+{
+    PID_PositionSetParameter(&Pitch_PositionPID, kp, ki, kd);
+}
+
+void Gimbal_Pitch_SetSpeedPID(float kp, float ki, float kd)
+{
+    PID_PositionSetParameter(&Pitch_SpeedPID, kp, ki, kd);
+}

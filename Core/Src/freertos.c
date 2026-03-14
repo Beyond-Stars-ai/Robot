@@ -36,10 +36,11 @@
 #include "bsp_can.h"
 
 #include "Gimbal_CtoC.h"
-#include "Gimbal_Pitch.h"
-#include "Gimbal_Yaw.h"
-
-#include "new_Gimbal_Yaw.h"
+#include "Gimbal_Control.h"
+#include "Gimbal_SmallYaw.h"
+// #include "Gimbal_Pitch.h"
+// #include "Gimbal_Yaw.h"
+// #include "new_Gimbal_Yaw.h"
 
 /* USER CODE END Includes */
 
@@ -134,8 +135,10 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
   Can_Filter_Init();
-  Gimbal_Pitch_Init();
-  Gimbal_YawSmall_Init();
+  // Gimbal_Pitch_Init();
+  // Gimbal_YawSmall_Init();
+  Gimbal_Control_Init();
+  Gimbal_SmallYaw_Init();
 
   // 清除接收缓冲区
   memset(receiveData, 0, sizeof(receiveData));
@@ -229,7 +232,8 @@ void StartRemoteTask(void *argument)
     if (osMessageQueueGet(rcDataQueueHandle, &current_rc_data, NULL, osWaitForever) == osOK)
     {
     // 处理遥控器数据
-    if (num>1000)
+    if (num>200)
+    // if (num>20)
     {
     RC_Data_Print(&current_rc_data);
     printf("Remote Control Data Received\n");
@@ -255,7 +259,10 @@ void StartCanTask(void *argument)
   for(;;)
   {
     Gimbal_CtoC_Remote();
-    Gimbal_Pitch_Control();
+    Gimbal_Control_Loop();
+    Gimbal_SmallYaw_Control();
+    
+    // Gimbal_Pitch_Control();
     // Motor_6020_Voltage1((int16_t)BigYaw_SpeedPID.OUT, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
     Motor_6020_Voltage1(0, 0, 0, 0, &hcan2);
     osDelay(10);
@@ -287,7 +294,7 @@ void StartTOTask(void *argument)
     error_BigYaw_count = now_BigYaw_count - origin_BigYaw_count;
     error_SmallYaw_count = now_SmallYaw_count - origin_SmallYaw_count;
     // printf("origin_BigYaw_count: %d, origin_SmallYaw_count: %d\r\n", origin_BigYaw_count, origin_SmallYaw_count);
-    printf("BigYaw_M: %d, SmallYaw_M: %d\r\n", error_BigYaw_count, error_SmallYaw_count);
+    // printf("BigYaw_M: %d, SmallYaw_M: %d\r\n", error_BigYaw_count, error_SmallYaw_count);
     // printf("now_BigYaw_count: %d, now_SmallYaw_count: %d\r\n", now_BigYaw_count, now_SmallYaw_count);
     osDelay(200);
   }
