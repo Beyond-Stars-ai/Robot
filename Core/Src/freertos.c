@@ -198,7 +198,6 @@ void MX_FREERTOS_Init(void) {
 void StartDebugTask(void *argument)
 {
   /* USER CODE BEGIN StartDebugTask */
-    osDelay(100);
     /* Infinite loop */
     for (;;)
     {
@@ -254,6 +253,7 @@ void StartRemoteTask(void *argument)
 void StartCanTask(void *argument)
 {
   /* USER CODE BEGIN StartCanTask */
+  osDelay(100);
   /* Infinite loop */
   for(;;)
   {
@@ -279,7 +279,7 @@ void StartCanTask(void *argument)
 void StartTOTask(void *argument)
 {
   /* USER CODE BEGIN StartTOTask */
-  osDelay(100);
+  osDelay(20);
   now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
   now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
 

@@ -84,10 +84,4 @@ void Gimbal_SmallYaw_SetSpeedPID(float kp, float ki, float kd);
 void Gimbal_BigYaw_SetPosPID(float kp, float ki, float kd);
 void Gimbal_BigYaw_SetSpeedPID(float kp, float ki, float kd);
 
-// 调试打印
-void Gimbal_GetDebugData(Gimbal_Debug_Data_t *data);
-void Gimbal_PrintDebug(void);
-void Gimbal_PrintDebug_SmallYaw(void);   // 只打印SmallYaw
-void Gimbal_PrintDebug_Pitch(void);      // 只打印Pitch
-
 #endif // __GIMBAL_CONTROL_H

@@ -36,3 +36,14 @@ typedef enum {
 所以我们需要根据它们的机械向性，定义上位端的虚拟编码值0，0
 然后再用这个虚拟编码值0，0，来计算实际编码值，也就是我们之前定义的now_BigYaw_count = 0;
 记得保留当前值和目标值的设置
+
+
+好了我们只是初步达到我们的目标， 但有两个事实我们要意识到， 首先是在开机后，我们的小车会瞬间猛打头回归云台的机械中值，这不是我们所期望的， 其次我们的大yaw轴明显跟不上小yaw轴的速度，为什么，虽然确定编码了，但转动角度并不和谐，这让我想起了遥远的代码 // if(angle > smallyaw_x - 74 && angle < smallyaw_x + 8) { // SmallYaw_SpeedPID.OUT = 400; // } // else if(angle > smallyaw_x - 154 && angle < smallyaw_x - 74) { // SmallYaw_SpeedPID.OUT = -400;
+
+现在我们进行问答环节
+
+int16_t origin_BigYaw_count = 6537; int16_t origin_SmallYaw_count = 2233;
+
+int16_t now_BigYaw_count = 0; int16_t now_SmallYaw_count = 0;
+
+int16_t error_BigYaw_count = 0; int16_t error_SmallYaw_count = 0; 这是三组参数，你是怎么理解的， origin_被我理解为机械中值 now_被我理解为每次开机时的当前定位 error_被
