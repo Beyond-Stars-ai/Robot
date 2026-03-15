@@ -68,8 +68,6 @@ int16_t origin_SmallYaw_count = 2364;
 int16_t now_BigYaw_count = 0;
 int16_t now_SmallYaw_count = 0;
 
-int16_t error_BigYaw_count = 0;
-int16_t error_SmallYaw_count = 0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -280,17 +278,13 @@ void StartTOTask(void *argument)
 {
   /* USER CODE BEGIN StartTOTask */
   osDelay(20);
-  now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
-  now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
 
-  error_BigYaw_count = now_BigYaw_count - origin_BigYaw_count;
-  error_SmallYaw_count = now_SmallYaw_count - origin_SmallYaw_count;
   /* Infinite loop */
   for(;;)
   {
     now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
     now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
-    printf("now_BigYaw_count: %d, now_SmallYaw_count: %d\r\n", now_BigYaw_count, now_SmallYaw_count);
+    printf("now_BigYaw_count: %d, now_SmallYaw_count: %d\r\n", now_BigYaw_count, now_SmallYaw_count); //最好的外部调试窗口
     osDelay(200);
   }
   /* USER CODE END StartTOTask */
