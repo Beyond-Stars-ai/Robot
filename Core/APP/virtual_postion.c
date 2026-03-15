@@ -43,9 +43,12 @@ void Virtual_Yaw_Init(void)
 
 void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
 {
+    // 定义减速比 n = 4.8
+    const float n = 4.8f;
+    
     //---------- 1. 记录实际编码 ----------
     g_state.real_small_now = real_small;
-    g_state.real_big_now = real_big;
+    // 不再记录大Yaw的实际编码，而是基于小Yaw的虚拟坐标计算
     
     //---------- 2. 更新虚拟坐标（遥控器控制）----------
     // rc_value已偏移（中位=0），向右打杆为正
@@ -60,8 +63,8 @@ void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
     g_state.target_small = (float)origin_SmallYaw_count - g_state.virtual_coord;
     g_state.target_small = normalize_angle(g_state.target_small);
     
-    // BigYaw: 向右转编码增加，目标 = origin + virtual
-    g_state.target_big = (float)origin_BigYaw_count + g_state.virtual_coord;
+    // BigYaw: 基于小Yaw的虚拟坐标变化，目标 = origin + virtual * n
+    g_state.target_big = (float)origin_BigYaw_count + g_state.virtual_coord * n;
     g_state.target_big = normalize_angle(g_state.target_big);
     
     //---------- 4. 计算误差 ----------
@@ -71,11 +74,17 @@ void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
     else if (err_s < -4096.0f) err_s += 8192.0f;
     g_state.error_small = err_s;
     
-    float err_b = g_state.target_big - real_big;
+    // 计算大Yaw的虚拟位置（基于小Yaw的虚拟坐标）
+    float virtual_big = (float)origin_BigYaw_count + g_state.virtual_coord * n;
+    virtual_big = normalize_angle(virtual_big);
+    
+    // 计算大Yaw的误差
+    float err_b = virtual_big - real_big;
     if (err_b > 4096.0f) err_b -= 8192.0f;
     else if (err_b < -4096.0f) err_b += 8192.0f;
     g_state.error_big = err_b;
 }
+
 
 //=========================== 获取目标（供控制层使用）===========================//
 

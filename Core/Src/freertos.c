@@ -62,8 +62,8 @@ extern M6020_Motor Can2_M6020_MotorStatus[7];
 uint8_t receiveData[18];
 RC_ctrl_t global_rc_control; // 全局遥控器数据
 
-int16_t origin_BigYaw_count = 7434;
-int16_t origin_SmallYaw_count = 2364;
+int16_t origin_BigYaw_count = 7611;
+int16_t origin_SmallYaw_count = 2330;
 
 int16_t now_BigYaw_count = 0;
 int16_t now_SmallYaw_count = 0;
