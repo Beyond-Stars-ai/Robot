@@ -1,5 +1,6 @@
 #include "virtual_postion.h"
 #include <math.h>
+#include <stdlib.h>
 
 //=========================== 内部变量 ===========================//
 
@@ -44,15 +45,21 @@ void Virtual_Yaw_Init(void)
 void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
 {
     // 定义减速比 n = 4.8
-    const float n = 4.8f;
+    const float n = 3.2f;
     
     //---------- 1. 记录实际编码 ----------
     g_state.real_small_now = real_small;
-    // 不再记录大Yaw的实际编码，而是基于小Yaw的虚拟坐标计算
     
     //---------- 2. 更新虚拟坐标（遥控器控制）----------
     // rc_value已偏移（中位=0），向右打杆为正
     float delta = VIRTUAL_RC_SENS * (float)rc_value;
+
+    // 添加死区，避免微小抖动
+    const float deadzone = 50.0f;
+    if (abs(rc_value) < deadzone) {
+        delta = 0.0f;
+    }
+    
     g_state.virtual_coord += delta;
     
     // 限幅
