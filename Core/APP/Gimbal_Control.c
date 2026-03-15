@@ -24,6 +24,9 @@ static float limit_value(float value, float min, float max)
 
 void Gimbal_Control_Init(void)
 {
+    //---------- 虚拟坐标层初始化 ----------
+    Virtual_Yaw_Init();
+
     //---------- Pitch初始化 ----------
     PID_PositionStructureInit(&Pitch_PositionPID, 4074.0f);
     PID_PositionSetParameter(&Pitch_PositionPID, 0.5f, 0.0f, 0.0f);
@@ -57,8 +60,6 @@ void Gimbal_Control_Init(void)
     PID_PositionSetOUTRange(&BigYaw_SpeedPID, -20000.0f, 20000.0f);
     PID_PositionSetEkRange(&BigYaw_SpeedPID, -3.0f, 3.0f);
     
-    //---------- 虚拟坐标层初始化 ----------
-    Virtual_Yaw_Init();
 }
 
 //=========================== Pitch控制 ===========================//

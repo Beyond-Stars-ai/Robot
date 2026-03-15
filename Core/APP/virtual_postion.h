@@ -9,16 +9,10 @@
 extern int16_t origin_BigYaw_count;
 extern int16_t origin_SmallYaw_count;
 
-// 实时状态（定义在freertos.c，用于调试观察）
-extern int16_t now_BigYaw_count;
-extern int16_t now_SmallYaw_count;
-extern int16_t error_BigYaw_count;
-extern int16_t error_SmallYaw_count;
-
 //=========================== 配置 ===========================//
 
 #define VIRTUAL_RC_CHANNEL      2       // 遥控器通道ch[2]
-#define VIRTUAL_RC_SENS         0.5f    // 虚拟坐标灵敏度
+#define VIRTUAL_RC_SENS         0.1f    // 虚拟坐标灵敏度
 #define VIRTUAL_LIMIT           4000.0f // 虚拟坐标限幅
 
 //=========================== 虚拟坐标数据结构 ===========================//

@@ -75,12 +75,6 @@ void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
     if (err_b > 4096.0f) err_b -= 8192.0f;
     else if (err_b < -4096.0f) err_b += 8192.0f;
     g_state.error_big = err_b;
-    
-    //---------- 5. 更新外部调试变量 ----------
-    now_SmallYaw_count = (int16_t)real_small;
-    now_BigYaw_count = (int16_t)real_big;
-    error_SmallYaw_count = (int16_t)g_state.error_small;
-    error_BigYaw_count = (int16_t)g_state.error_big;
 }
 
 //=========================== 获取目标（供控制层使用）===========================//

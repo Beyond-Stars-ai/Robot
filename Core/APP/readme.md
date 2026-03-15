@@ -1,49 +1,15 @@
-@Core 就物理模型而言计划有变化，现在我们需要重新审核yaw轴代码，
-首先第一步，让我们回到@Core/Src freertos.c
-我已经粗略地定义了
-int16_t origin_BigYaw_count = 6537;
-int16_t origin_SmallYaw_count = 2233;
+这就是每次甩头后返回数据，这是编码真实值 请分析为什么 我已经撤回你的修改 不不不 让咱们继续沟通，在我们把机械挪到中值位置的时候应该是坐标（0，0），但当我们的位置不是初始坐标的时候，先从正数计算，我们应先读取一下当前smallyaw编码值并与机械中值对比，得出新的虚拟坐标值，并把该虚拟坐标值作为新的启动位置，进而不再摆头 而现在它还是会转向一个莫名其妙一直以来的位置
 
-int16_t now_BigYaw_count = 0;
-int16_t now_SmallYaw_count = 0;
+真的是如此吗，为什么开机会瞎转到一个特定的角度
 
-int16_t error_BigYaw_count = 0;
-int16_t error_SmallYaw_count = 0;
-分别为机械中值编码值，开机启动的编码值，和编码差值
-接下来 请阅读 @Core/APP 请重新阅读 Gimbal_Yaw_Big./Gimbal_Yaw_Small./Gimbal_PoseCalc./Gimbal_Pitch./
+咱们的路线不应该是在虚拟坐标初始化后，把参数 PID_PositionStructureInit(&SmallYaw_PositionPID, 0.0f);切换成 PID_PositionStructureInit(&SmallYaw_PositionPID, x);吗 而且 //---------- 虚拟坐标层初始化 ---------- // 传入当前编码，计算初始虚拟坐标（开机位置对应虚拟值，不转头） float current_small = (float)Can2_M6020_MotorStatus[1].Angle; float current_big = (float)Can2_M6020_MotorStatus[0].Angle; Virtual_Yaw_Init(current_small, current_big); 应该先于 //---------- Pitch初始化 ---------- PID_PositionStructureInit(&Pitch_PositionPID, 4074.0f); PID_PositionSetParameter(&Pitch_PositionPID, 0.5f, 0.0f, 0.0f); PID_PositionSetOUTRange(&Pitch_PositionPID, -400.0f, 400.0f); PID_PositionSetEkRange(&Pitch_PositionPID, -3.0f, 3.0f);
 
-然后回到咱们定义的new_Gimbal_Yaw
-我预计整合yaw和pitch到一个文件中，意味着
-Gimbal_Pitch
-也会被添加，请重新起名
-此外new_Gimbal_Yaw存在若干点瑕疵和机械上的考虑不足
-1extern M6020_Motor Can2_M6020_MotorStatus[7];     // GM6020电机状态数组 - Can2定义是否正确，我们使用的要严格遵循Gimbal_Yaw_Big/Gimbal_Yaw_Small的配置，应该是can1吧
-typedef enum {
-    SMALLYAW_MODE_ENCODER = 0,      // 编码器模式：直接设置目标编码器值
-    SMALLYAW_MODE_REMOTE,           // 遥控器模式：遥控器增量控制
-    SMALLYAW_MODE_GYRO,             // 陀螺仪模式：预留
-} SmallYaw_Mode_e
-要么不设立
-要么取消编码器模式：直接设置目标编码器值，我们没有这个模式，SMALLYAW_MODE_GYRO,             // 陀螺仪模式：预留也取消，我们底盘补偿了，所以typedef enum {
-    SMALLYAW_MODE_ENCODER = 0,      // 编码器模式：直接设置目标编码器值
-    SMALLYAW_MODE_REMOTE,           // 遥控器模式：遥控器增量控制
-    SMALLYAW_MODE_GYRO,             // 陀螺仪模式：预留
-} SmallYaw_Mode_e;没有意义了，只有遥控器模式
+PID_PositionStructureInit(&Pitch_SpeedPID, 0.0f); PID_PositionSetParameter(&Pitch_SpeedPID, 50.0f, 0.0f, 0.0f); PID_PositionSetOUTRange(&Pitch_SpeedPID, -20000.0f, 20000.0f); PID_PositionSetEkRange(&Pitch_SpeedPID, -3.0f, 3.0f);
 
+//---------- SmallYaw初始化 ---------- PID_PositionStructureInit(&SmallYaw_PositionPID, 0.0f); PID_PositionSetParameter(&SmallYaw_PositionPID, 0.5f, 0.0f, 0.0f); PID_PositionSetOUTRange(&SmallYaw_PositionPID, -4000.0f, 4000.0f); PID_PositionSetEkRange(&SmallYaw_PositionPID, -5.0f, 5.0f);
 
-现在是机械上的疏忽，以我们的原始机械中值为例子，以俯视角（上视角为例子），bigyaw是顺时针编码增加，smallyaw是逆时针编码增加，以原始机械中值，也就是原始位置为例子，就是smallyaw逆时针向左边为正方向，bigyaw顺时针向右为正方向
-此外还记得之前吗，smallyaw编码只根据遥控器转动，bigyaw编码只随小yaw轴编码转动而转动
-所以我们需要根据它们的机械向性，定义上位端的虚拟编码值0，0
-然后再用这个虚拟编码值0，0，来计算实际编码值，也就是我们之前定义的now_BigYaw_count = 0;
-记得保留当前值和目标值的设置
+PID_PositionStructureInit(&SmallYaw_SpeedPID, 0.0f); PID_PositionSetParameter(&SmallYaw_SpeedPID, 20.0f, 0.0f, 0.0f); PID_PositionSetOUTRange(&SmallYaw_SpeedPID, -10000.0f, 10000.0f); PID_PositionSetEkRange(&SmallYaw_SpeedPID, -3.0f, 3.0f);
 
+//---------- BigYaw初始化 ---------- PID_PositionStructureInit(&BigYaw_PositionPID, 0.0f); PID_PositionSetParameter(&BigYaw_PositionPID, 0.8f, 0.0f, 0.0f); PID_PositionSetOUTRange(&BigYaw_PositionPID, -6000.0f, 6000.0f); PID_PositionSetEkRange(&BigYaw_PositionPID, -5.0f, 5.0f);
 
-好了我们只是初步达到我们的目标， 但有两个事实我们要意识到， 首先是在开机后，我们的小车会瞬间猛打头回归云台的机械中值，这不是我们所期望的， 其次我们的大yaw轴明显跟不上小yaw轴的速度，为什么，虽然确定编码了，但转动角度并不和谐，这让我想起了遥远的代码 // if(angle > smallyaw_x - 74 && angle < smallyaw_x + 8) { // SmallYaw_SpeedPID.OUT = 400; // } // else if(angle > smallyaw_x - 154 && angle < smallyaw_x - 74) { // SmallYaw_SpeedPID.OUT = -400;
-
-现在我们进行问答环节
-
-int16_t origin_BigYaw_count = 6537; int16_t origin_SmallYaw_count = 2233;
-
-int16_t now_BigYaw_count = 0; int16_t now_SmallYaw_count = 0;
-
-int16_t error_BigYaw_count = 0; int16_t error_SmallYaw_count = 0; 这是三组参数，你是怎么理解的， origin_被我理解为机械中值 now_被我理解为每次开机时的当前定位 error_被
+PID_PositionStructureInit(&BigYaw_SpeedPID, 0.0f); PID_PositionSetParameter(&BigYaw_SpeedPID, 30.0f, 0.0f, 0.0f); PID_PositionSetOUTRange(&BigYaw_SpeedPID, -20000.0f, 20000.0f); PID_PositionSetEkRange(&BigYaw_SpeedPID
