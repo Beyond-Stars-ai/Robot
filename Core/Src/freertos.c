@@ -138,9 +138,9 @@ void MX_FREERTOS_Init(void) {
   memset(receiveData, 0, sizeof(receiveData));
   HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
 
-  //延时确保Can数据接收稳定
-  osDelay(50); 
-  Gimbal_Control_Init();
+  // 延时确保Can数据接收稳定
+  // osDelay(50); 
+  // Gimbal_Control_Init();
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -252,6 +252,7 @@ void StartCanTask(void *argument)
 {
   /* USER CODE BEGIN StartCanTask */
   osDelay(200);
+  Gimbal_Control_Init();
   /* Infinite loop */
   for(;;)
   {
@@ -284,8 +285,17 @@ void StartTOTask(void *argument)
   {
     now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
     now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
-    printf("now_BigYaw_count: %d, now_SmallYaw_count: %d\r\n", now_BigYaw_count, now_SmallYaw_count); //最好的外部调试窗口
-    osDelay(200);
+    
+    // 调试打印：实际编码和虚拟坐标（使用外部变量，避免函数调用）
+    printf("Yaw> RealS:%d RealB:%d | OriginS:%d OriginB:%d | RC:%d |\r\n", 
+           now_SmallYaw_count, 
+           now_BigYaw_count,
+           origin_SmallYaw_count,
+           origin_BigYaw_count,
+           global_rc_control.rc.ch[2]
+           );  // 外部变量直接访问
+    
+    osDelay(500);
   }
   /* USER CODE END StartTOTask */
 }
