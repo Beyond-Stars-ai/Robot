@@ -62,8 +62,8 @@ extern M6020_Motor Can2_M6020_MotorStatus[7];
 uint8_t receiveData[18];
 RC_ctrl_t global_rc_control; // 全局遥控器数据
 
-int16_t origin_BigYaw_count = 6537;
-int16_t origin_SmallYaw_count = 2233;
+int16_t origin_BigYaw_count = 6274;
+int16_t origin_SmallYaw_count = 2302;
 
 int16_t now_BigYaw_count = 0;
 int16_t now_SmallYaw_count = 0;
@@ -135,9 +135,8 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
   Can_Filter_Init();
-  // Gimbal_YawSmall_Init();
+
   Gimbal_Control_Init();
-  // Gimbal_SmallYaw_Init();
 
   // 清除接收缓冲区
   memset(receiveData, 0, sizeof(receiveData));
@@ -288,13 +287,13 @@ void StartTOTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    // now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
-    // now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
+    now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
+    now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
     // error_BigYaw_count = now_BigYaw_count - origin_BigYaw_count;
     // error_SmallYaw_count = now_SmallYaw_count - origin_SmallYaw_count;
     // printf("origin_BigYaw_count: %d, origin_SmallYaw_count: %d\r\n", origin_BigYaw_count, origin_SmallYaw_count);
     // printf("BigYaw_M: %d, SmallYaw_M: %d\r\n", error_BigYaw_count, error_SmallYaw_count);
-    // printf("now_BigYaw_count: %d, now_SmallYaw_count: %d\r\n", now_BigYaw_count, now_SmallYaw_count);
+    printf("now_BigYaw_count: %d, now_SmallYaw_count: %d\r\n", now_BigYaw_count, now_SmallYaw_count);
     osDelay(200);
   }
   /* USER CODE END StartTOTask */
