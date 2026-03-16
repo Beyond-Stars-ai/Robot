@@ -21,8 +21,8 @@ extern int16_t origin_SmallYaw_count;
 typedef struct {
     // 虚拟坐标（核心）
     float virtual_coord;            // 总虚拟坐标（目标朝向总量）
-    float small_part;               // 小Yaw当前承担的偏量（持久化状态，用于衰减）
-    int   is_returning;             // 标志位：是否处于“回中”阶段
+    float small_part;               // 小Yaw当前承担的偏量（持久化状态）
+    float big_yaw_vel;              // BigYaw 实时速度分量（用于平滑跟随，产生“摆尾”感）
     
     // 实际编码（输入）
     float real_small_now;           // SmallYaw当前实际编码

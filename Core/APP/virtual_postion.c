@@ -33,7 +33,7 @@ void Virtual_Yaw_Init(void)
     // 虚拟坐标从0开始（对应机械中值）
     g_state.virtual_coord = 0.0f;
     g_state.small_part    = 0.0f;
-    g_state.is_returning  = 0;
+    g_state.big_yaw_vel   = 0.0f;
 
     // 初始化目标为机械中值
     g_state.target_small = (float)origin_SmallYaw_count;
@@ -63,8 +63,8 @@ void Virtual_Yaw_Init(void)
 //
 void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
 {
-    // SmallYaw 最大偏转限幅（8192 * 0.1 = 819.2）
-    const float SMALL_LIMIT = 819.2f; 
+    // SmallYaw 最大偏转限幅（8192 * 0.2 = 1638.4）
+    const float SMALL_LIMIT = 1638.4f; 
     // 衰减系数（控制回中速度），0.98 表示每拍缩小 2%
     const float DECAY_RATE  = 0.98f;
 
@@ -81,26 +81,41 @@ void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
     g_state.virtual_coord = limit_value(g_state.virtual_coord,
                                         -VIRTUAL_LIMIT, VIRTUAL_LIMIT);
 
-    //---------- 3. 处理接力逻辑 (SmallYaw 分量更新) ----------
+    //---------- 3. 处理“神龙摆尾”跟随逻辑 ----------
+    //
+    // 控制策略：非线性弹性模型 + 速度平滑
+    // 1. 遥控器输入改变 SmallYaw 角度
+    // 2. 根据 SmallYaw 的偏角大小计算一个“期望跟随速度”
+    //    - 偏角越大，跟随速度越快（二次方特性）
+    // 3. 对该速度进行低通滤波，模拟“惯性”和“摆尾”的柔顺感
+
+    // 遥控器输入作用于小头
+    g_state.small_part += delta;
+
+    // A. 计算期望跟随速度 (Desired Velocity)
+    // 基础系数：小范围随动速度
+    const float K_P = 0.05f; 
+    // 非线性系数：大范围甩头速度
+    const float K_Q = 0.0001f; 
     
-    if (g_state.is_returning) {
-        // 【回中阶段】
-        g_state.small_part *= DECAY_RATE;
-        
-        // 当足够接近中点时，退出回中阶段，重新允许 SmallYaw 响应摇杆
-        if (fabsf(g_state.small_part) < 1.0f) {
-            g_state.small_part = 0.0f;
-            g_state.is_returning = 0;
-        }
-    } else {
-        // 【跟随阶段】
-        g_state.small_part += delta;
-        
-        // 触及限位，触发回中保护
-        if (fabsf(g_state.small_part) >= SMALL_LIMIT) {
-            g_state.small_part = limit_value(g_state.small_part, -SMALL_LIMIT, SMALL_LIMIT);
-            g_state.is_returning = 1;
-        }
+    float error = g_state.small_part;
+    float desired_vel = (K_P * error) + (K_Q * error * error * (error > 0 ? 1.0f : -1.0f));
+
+    // B. 速度平滑滤波 (Velocity Smoothing / The Tail Effect)
+    // 系数越小，尾巴越“肉”，加速感越强；系数越大，跟随越死板
+    const float SMOOTH_COEFF = 0.15f; 
+    g_state.big_yaw_vel += (desired_vel - g_state.big_yaw_vel) * SMOOTH_COEFF;
+
+    // C. 应用位移
+    // 小 Yaw 减去速度，大 Yaw 加上速度
+    g_state.small_part -= g_state.big_yaw_vel;
+
+    // 物理保护：防止小 Yaw 超出机械限位
+    if (fabsf(g_state.small_part) > SMALL_LIMIT) {
+        float over = fabsf(g_state.small_part) - SMALL_LIMIT;
+        // 超限部分强制推给大 Yaw
+        g_state.small_part = limit_value(g_state.small_part, -SMALL_LIMIT, SMALL_LIMIT);
+        // 这里可以根据需要微调（超限补偿）
     }
 
     // BigYaw 承担总量中除去 SmallYaw 贡献后的剩余部分
