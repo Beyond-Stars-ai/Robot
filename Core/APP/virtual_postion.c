@@ -32,6 +32,8 @@ void Virtual_Yaw_Init(void)
 {
     // 虚拟坐标从0开始（对应机械中值）
     g_state.virtual_coord = 0.0f;
+    g_state.small_part    = 0.0f;
+    g_state.is_returning  = 0;
 
     // 初始化目标为机械中值
     g_state.target_small = (float)origin_SmallYaw_count;
@@ -46,53 +48,77 @@ void Virtual_Yaw_Init(void)
 
 //=========================== 更新（核心）===========================//
 //
-// 控制逻辑：遥控器直接控制 BigYaw，SmallYaw 目标永远为机械中值
+// 控制逻辑：接力模型（SmallYaw 先动，到达限位后退避并由 BigYaw 接手）
 //
-//   遥控器 → 积分到 virtual_coord → BigYaw 目标基准
-//   SmallYaw 目标 = origin_SmallYaw（始终！不受遥控器直接控制）
-//   BigYaw  目标 = origin_BigYaw + virtual_coord + SmallYaw实际偏角
+//   阶段一：SmallYaw 未触及限位 (is_returning == 0)
+//           → 遥控器的输入 delta 直接累加到 small_part
+//           → 当 small_part 达到 SMALL_LIMIT 时，切换到阶段二
 //
-//   效果：当 SmallYaw 偏离中值，BigYaw 会额外补偿把它带回来，
-//         最终稳态下 SmallYaw 必然居中。
+//   阶段二：SmallYaw 回中阶段 (is_returning == 1)
+//           → small_part 按 DECAY_RATE 比例缩小（缓缓回中）
+//           → 当 small_part 接近 0 时，回到阶段一，重新获得移动能力
 //
-// 【方向约定说明】
-//   BigYaw 跟随方向若与 SmallYaw 偏角方向相反，将 small_offset 前的 "+" 改为 "-"
+//   最终效果：BigYaw 承接了 (virtual_coord - small_part)，
+//             在稳态下 small_part 为 0，即 SmallYaw 归中，BigYaw 全权负责朝向。
 //
 void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
 {
+    // SmallYaw 最大偏转限幅（8192 * 0.1 = 819.2）
+    const float SMALL_LIMIT = 819.2f; 
+    // 衰减系数（控制回中速度），0.98 表示每拍缩小 2%
+    const float DECAY_RATE  = 0.98f;
+
     //---------- 1. 记录实际编码 ----------
     g_state.real_small_now = real_small;
     g_state.real_big_now   = real_big;
 
-    //---------- 2. 遥控器积分控制 BigYaw 方向基准 ----------
+    //---------- 2. 遥控器积分（总期望朝向总量）----------
     float delta = 0.0f;
     if (abs(rc_value) >= (int16_t)VIRTUAL_RC_DEADZONE) {
         delta = VIRTUAL_RC_SENS * (float)rc_value;
     }
-
     g_state.virtual_coord += delta;
     g_state.virtual_coord = limit_value(g_state.virtual_coord,
                                         -VIRTUAL_LIMIT, VIRTUAL_LIMIT);
 
-    //---------- 3. SmallYaw 目标 = 机械中值（永远不变）----------
-    g_state.target_small = (float)origin_SmallYaw_count;
-    // 无需 normalize_angle：origin 本身在合法范围内
+    //---------- 3. 处理接力逻辑 (SmallYaw 分量更新) ----------
+    
+    if (g_state.is_returning) {
+        // 【回中阶段】
+        g_state.small_part *= DECAY_RATE;
+        
+        // 当足够接近中点时，退出回中阶段，重新允许 SmallYaw 响应摇杆
+        if (fabsf(g_state.small_part) < 1.0f) {
+            g_state.small_part = 0.0f;
+            g_state.is_returning = 0;
+        }
+    } else {
+        // 【跟随阶段】
+        g_state.small_part += delta;
+        
+        // 触及限位，触发回中保护
+        if (fabsf(g_state.small_part) >= SMALL_LIMIT) {
+            g_state.small_part = limit_value(g_state.small_part, -SMALL_LIMIT, SMALL_LIMIT);
+            g_state.is_returning = 1;
+        }
+    }
 
-    virtual_small = (int16_t)g_state.target_small;  // 调试观察
+    // BigYaw 承担总量中除去 SmallYaw 贡献后的剩余部分
+    float big_part = g_state.virtual_coord - g_state.small_part;
 
-    //---------- 4. BigYaw 目标 = 基准 + SmallYaw 实际偏角补偿 ----------
-    // 计算 SmallYaw 实际偏角（相对机械中值，带符号，处理 0/8191 跳变）
-    float small_offset = real_small - (float)origin_SmallYaw_count;
-    if (small_offset >  4096.0f) small_offset -= 8192.0f;
-    if (small_offset < -4096.0f) small_offset += 8192.0f;
+    //---------- 4. 计算目标编码 ----------
+    // SmallYaw：机械中值 - small_part（向右减小）
+    g_state.target_small = normalize_angle(
+        (float)origin_SmallYaw_count - g_state.small_part);
 
-    // BigYaw 目标 = 遥控基准 + SmallYaw 偏角补偿
-    // 含义：遥控决定朝向，SmallYaw 偏哪边 BigYaw 就追哪边，把 SmallYaw 带回中值
-    // 【注意】若跟随方向相反，将最后的 "+" 改为 "-"
+    virtual_small = (int16_t)g_state.target_small;
+
+    // BigYaw：机械中值 + big_part
+    // 【注意】如 BigYaw 方向相反，将 big_part 前的 "+" 改为 "-"
     g_state.target_big = normalize_angle(
-        (float)origin_BigYaw_count + g_state.virtual_coord - small_offset);
+        (float)origin_BigYaw_count + big_part);
 
-    virtual_big = (int16_t)g_state.target_big;  // 调试观察
+    virtual_big = (int16_t)g_state.target_big;
 
     //---------- 5. 计算误差（带环绕处理）----------
     float err_s = g_state.target_small - real_small;
