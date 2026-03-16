@@ -52,6 +52,7 @@ extern DMA_HandleTypeDef hdma_usart1_tx;
 extern DMA_HandleTypeDef hdma_usart3_rx;
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart3;
+extern UART_HandleTypeDef huart6;
 
 extern M6020_Motor Can2_M6020_MotorStatus[7];
 
@@ -62,8 +63,8 @@ extern M6020_Motor Can2_M6020_MotorStatus[7];
 uint8_t receiveData[18];
 RC_ctrl_t global_rc_control; // 全局遥控器数据
 
-int16_t origin_BigYaw_count = 3772;
-int16_t origin_SmallYaw_count = 2475;
+int16_t origin_BigYaw_count = 7671;
+int16_t origin_SmallYaw_count = 2375;
 
 int16_t now_BigYaw_count = 0;
 int16_t now_SmallYaw_count = 0;
@@ -420,7 +421,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 int _write(int fd, char *ptr, int len)
 {
-    HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart6, (uint8_t *)ptr, len, HAL_MAX_DELAY);
     return len;
 }
 
