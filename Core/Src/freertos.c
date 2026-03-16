@@ -68,6 +68,9 @@ int16_t origin_SmallYaw_count = 2364;
 int16_t now_BigYaw_count = 0;
 int16_t now_SmallYaw_count = 0;
 
+extern int16_t virtual_big;
+extern int16_t virtual_small;
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -287,11 +290,11 @@ void StartTOTask(void *argument)
     now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
     
     // 调试打印：实际编码和虚拟坐标（使用外部变量，避免函数调用）
-    printf("Yaw> RealS:%d RealB:%d | OriginS:%d OriginB:%d | RC:%d |\r\n", 
+    printf("Yaw> RealS:%d RealB:%d | VirtualS:%d VirtualB:%d | RC:%d |\r\n", 
            now_SmallYaw_count, 
            now_BigYaw_count,
-           origin_SmallYaw_count,
-           origin_BigYaw_count,
+           virtual_small,
+           virtual_big,
            global_rc_control.rc.ch[2]
            );  // 外部变量直接访问
     

@@ -5,6 +5,9 @@
 
 static Virtual_Yaw_State_t g_state = {0};
 
+int16_t virtual_big;
+int16_t virtual_small;
+
 //=========================== 工具函数 ===========================//
 
 static float limit_value(float value, float min, float max)
@@ -59,10 +62,14 @@ void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
     // SmallYaw: 向右转编码减小，目标 = origin - virtual
     g_state.target_small = (float)origin_SmallYaw_count - g_state.virtual_coord;
     g_state.target_small = normalize_angle(g_state.target_small);
+
+    virtual_small = g_state.target_small;
     
     // BigYaw: 向右转编码增加，目标 = origin + virtual
     g_state.target_big = (float)origin_BigYaw_count + g_state.virtual_coord;
     g_state.target_big = normalize_angle(g_state.target_big);
+
+    virtual_big = g_state.target_big;
     
     //---------- 4. 计算误差 ----------
     // 处理循环误差（0/8191跳变）
