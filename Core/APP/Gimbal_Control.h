@@ -26,7 +26,7 @@ extern PID_PositionInitTypedef BigYaw_SpeedPID;
 
 // Pitch轴 - CAN1, ID 0x206, 索引1
 #define PITCH_RC_CHANNEL        3
-#define PITCH_RC_SENS           0.05f
+#define PITCH_RC_SENS           0.03f
 #define PITCH_LIMIT_UP          4500.0f
 #define PITCH_LIMIT_DOWN        3300.0f
 
