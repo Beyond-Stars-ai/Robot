@@ -19,6 +19,12 @@ static float limit_value(float value, float min, float max)
     return value;
 }
 
+// static float normalize_angle(float angle)
+// {
+//     float res = fmod(angle, 8192.0f);
+//     if (res < 0.0f) res += 8192.0f;
+//     return res;
+// }
 static float normalize_angle(float angle)
 {
     while (angle < 0.0f) angle += 8192.0f;
@@ -63,10 +69,10 @@ void Virtual_Yaw_Init(void)
 //
 void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
 {
-    // SmallYaw 最大偏转限幅（8192 * 0.2 = 1638.4）
-    const float SMALL_LIMIT = 1638.4f; 
+    // SmallYaw 最大偏转限幅（8192 * 0.40 = 3276.8）
+    const float SMALL_LIMIT = 3276.8f; 
     // 衰减系数（控制回中速度），0.98 表示每拍缩小 2%
-    const float DECAY_RATE  = 0.98f;
+    const float DECAY_RATE  = 0.1f;
 
     //---------- 1. 记录实际编码 ----------
     g_state.real_small_now = real_small;
@@ -77,9 +83,7 @@ void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
     if (abs(rc_value) >= (int16_t)VIRTUAL_RC_DEADZONE) {
         delta = VIRTUAL_RC_SENS * (float)rc_value;
     }
-    g_state.virtual_coord += delta;
-    g_state.virtual_coord = limit_value(g_state.virtual_coord,
-                                        -VIRTUAL_LIMIT, VIRTUAL_LIMIT);
+    g_state.virtual_coord = normalize_angle(g_state.virtual_coord + delta);
 
     //---------- 3. 处理“神龙摆尾”跟随逻辑 ----------
     //

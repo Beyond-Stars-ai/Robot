@@ -12,9 +12,9 @@ extern int16_t origin_SmallYaw_count;
 //=========================== 配置 ===========================//
 
 #define VIRTUAL_RC_CHANNEL      2       // 遥控器通道ch[2]
-#define VIRTUAL_RC_SENS         0.1f    // 虚拟坐标灵敏度
+#define VIRTUAL_RC_SENS         0.15f    // 虚拟坐标灵敏度
 #define VIRTUAL_RC_DEADZONE     50.0f   // 遥控器死区（防止微小抖动）
-#define VIRTUAL_LIMIT           4000.0f // 虚拟坐标限幅（SmallYaw最大偏角对应编码值）
+// #define VIRTUAL_LIMIT           4000.0f // 虚拟坐标限幅（SmallYaw最大偏角对应编码值）
 
 //=========================== 虚拟坐标数据结构 ===========================//
 
