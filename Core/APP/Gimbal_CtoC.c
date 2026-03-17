@@ -35,19 +35,19 @@ void Gimbal_CtoC_Remote(void)
                         global_rc_control.rc.ch[2], global_rc_control.rc.ch[3], &hcan2);
 }
 
-// void CToC_AngleProcess(uint32_t ID,uint8_t *Data,BMI088_Init_typedef *data)
-// {
-// 	int16_t yaw = (int16_t)((Data[0] << 8) | Data[1]);
-// 	int16_t pitch = (int16_t)((Data[2] << 8) | Data[3]);
-// 	int16_t roll = (int16_t)((Data[4] << 8) | Data[5]);
-// 	int16_t tmp = (int16_t)((Data[6] << 8) | Data[7]);
+void CToC_AngleProcess(uint32_t ID,uint8_t *Data,BMI088_Init_typedef *data)
+{
+	int16_t yaw = (int16_t)((Data[0] << 8) | Data[1]);
+	int16_t pitch = (int16_t)((Data[2] << 8) | Data[3]);
+	int16_t roll = (int16_t)((Data[4] << 8) | Data[5]);
+	int16_t tmp = (int16_t)((Data[6] << 8) | Data[7]);
 
-// 	data->Yaw = yaw / 100.0f;      // 转回 rad/s
-// 	data->Pitch = pitch / 100.0f;
-// 	data->Roll = roll / 100.0f;
-// 	data->Temp = tmp / 10.0f;         // 转回 °C
+	data->Yaw = yaw / 100.0f;      // 转回 rad/s
+	data->Pitch = pitch / 100.0f;
+	data->Roll = roll / 100.0f;
+	data->Temp = tmp / 10.0f;         // 转回 °C
 
-// }
+}
 
 // void CToC_GyroProcess(uint32_t ID,uint8_t *Data)
 //{

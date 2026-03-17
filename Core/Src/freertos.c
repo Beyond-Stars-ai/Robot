@@ -37,6 +37,9 @@
 
 #include "Gimbal_CtoC.h"
 #include "Gimbal_Control.h"
+#include "Gimbal_Trigger.h"
+#include "Gimbal_Shoot.h"
+
 // #include "Gimbal_SmallYaw.h"
 // #include "Gimbal_Pitch.h"
 // #include "Gimbal_Yaw.h"
@@ -206,11 +209,11 @@ void StartDebugTask(void *argument)
     {
         // printf("hello world\r\n");
         HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
-        osDelay(750);
-        HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
-        osDelay(750);
-        HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
-        osDelay(750);
+        osDelay(100);
+        // HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
+        // osDelay(750);
+        // HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
+        // osDelay(750);
     }
   /* USER CODE END StartDebugTask */
 }
@@ -258,10 +261,14 @@ void StartCanTask(void *argument)
   /* USER CODE BEGIN StartCanTask */
   osDelay(100);
   Gimbal_Control_Init();
+  Gimbal_Shoot_Init();
+  Gimbal_Trigger_Init();
   /* Infinite loop */
   for(;;)
   {
-    Gimbal_CtoC_Remote();
+    Gimbal_CtoC_Remote();   //说出了谁的心声，周瑞
+    Gimbal_Trigger_Control();
+	  Gimbal_Shoot_Control();
     // Motor_6020_Voltage1(0, 0, 0, 0, &hcan2);
     Gimbal_Control_Loop();
     // Gimbal_SmallYaw_Control();
