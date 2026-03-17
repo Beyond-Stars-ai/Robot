@@ -53,6 +53,7 @@ extern DMA_HandleTypeDef hdma_usart3_rx;
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart3;
 extern UART_HandleTypeDef huart6;
+extern IWDG_HandleTypeDef hiwdg;
 
 extern M6020_Motor Can2_M6020_MotorStatus[7];
 
@@ -255,16 +256,16 @@ void StartRemoteTask(void *argument)
 void StartCanTask(void *argument)
 {
   /* USER CODE BEGIN StartCanTask */
-  osDelay(200);
+  osDelay(100);
   Gimbal_Control_Init();
   /* Infinite loop */
   for(;;)
   {
     Gimbal_CtoC_Remote();
-    Motor_6020_Voltage1(0, 0, 0, 0, &hcan2);
+    // Motor_6020_Voltage1(0, 0, 0, 0, &hcan2);
     Gimbal_Control_Loop();
     // Gimbal_SmallYaw_Control();
-
+    // HAL_IWDG_Refresh(&hiwdg);
     // Gimbal_Pitch_Control();
     // Motor_6020_Voltage1((int16_t)BigYaw_SpeedPID.OUT, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
     osDelay(10);
@@ -327,6 +328,9 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 
         // 禁止半传送中断
         __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT);
+
+        // 喂狗
+        HAL_IWDG_Refresh(&hiwdg);
     }
 }
 

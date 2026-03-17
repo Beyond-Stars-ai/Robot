@@ -331,3 +331,4 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 //     HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
 // }
 /* USER CODE END 1 */
+
