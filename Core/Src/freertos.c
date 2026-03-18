@@ -81,6 +81,8 @@ int16_t now_SmallYaw_count = 0;
 extern int16_t virtual_big;
 extern int16_t virtual_small;
 
+//标记
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
