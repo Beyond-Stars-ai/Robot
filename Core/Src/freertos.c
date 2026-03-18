@@ -19,9 +19,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
-#include "task.h"
-#include "main.h"
 #include "cmsis_os.h"
+#include "main.h"
+#include "task.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -31,14 +31,14 @@
 
 // #include "usart.h"
 
-#include "remote_control.h"
 #include "Motor.h"
 #include "bsp_can.h"
+#include "remote_control.h"
 
-#include "Gimbal_CtoC.h"
 #include "Gimbal_Control.h"
-#include "Gimbal_Trigger.h"
+#include "Gimbal_CtoC.h"
 #include "Gimbal_Shoot.h"
+#include "Gimbal_Trigger.h"
 
 // #include "Gimbal_SmallYaw.h"
 // #include "Gimbal_Pitch.h"
@@ -90,36 +90,39 @@ void RC_Data_Print(RC_ctrl_t *rc_data);
 /* Definitions for DebugTask */
 osThreadId_t DebugTaskHandle;
 const osThreadAttr_t DebugTask_attributes = {
-  .name = "DebugTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+    .name = "DebugTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityNormal,
 };
 /* Definitions for RemoteTask */
 osThreadId_t RemoteTaskHandle;
 const osThreadAttr_t RemoteTask_attributes = {
-  .name = "RemoteTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+    .name = "RemoteTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityLow,
 };
 /* Definitions for CanTask */
 osThreadId_t CanTaskHandle;
 const osThreadAttr_t CanTask_attributes = {
-  .name = "CanTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+    .name = "CanTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityLow,
 };
 /* Definitions for TOTask */
 osThreadId_t TOTaskHandle;
 const osThreadAttr_t TOTask_attributes = {
-  .name = "TOTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+    .name = "TOTask",
+    .stack_size = 128 * 4,
+    .priority = (osPriority_t)osPriorityLow,
 };
 /* Definitions for rcDataQueue */
 osMessageQueueId_t rcDataQueueHandle;
 const osMessageQueueAttr_t rcDataQueue_attributes = {
-  .name = "rcDataQueue"
-};
+    .name = "rcDataQueue"};
+/* Definitions for CtoCQueue */
+osMessageQueueId_t CtoCQueueHandle;
+const osMessageQueueAttr_t CtoCQueue_attributes = {
+    .name = "CtoCQueue"};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -134,64 +137,67 @@ void StartTOTask(void *argument);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
-  * @brief  FreeRTOS initialization
-  * @param  None
-  * @retval None
-  */
-void MX_FREERTOS_Init(void) {
-  /* USER CODE BEGIN Init */
-  Can_Filter_Init();
+ * @brief  FreeRTOS initialization
+ * @param  None
+ * @retval None
+ */
+void MX_FREERTOS_Init(void)
+{
+    /* USER CODE BEGIN Init */
+    Can_Filter_Init();
 
-  // 清除接收缓冲区并开始接收
-  memset(receiveData, 0, sizeof(receiveData));
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
+    // 清除接收缓冲区并开始接收
+    memset(receiveData, 0, sizeof(receiveData));
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
 
-  // 延时确保Can数据接收稳定
-  // osDelay(50); 
-  // Gimbal_Control_Init();
-  /* USER CODE END Init */
+    // 延时确保Can数据接收稳定
+    // osDelay(50);
+    // Gimbal_Control_Init();
+    /* USER CODE END Init */
 
-  /* USER CODE BEGIN RTOS_MUTEX */
+    /* USER CODE BEGIN RTOS_MUTEX */
     /* add mutexes, ... */
-  /* USER CODE END RTOS_MUTEX */
+    /* USER CODE END RTOS_MUTEX */
 
-  /* USER CODE BEGIN RTOS_SEMAPHORES */
+    /* USER CODE BEGIN RTOS_SEMAPHORES */
     /* add semaphores, ... */
-  /* USER CODE END RTOS_SEMAPHORES */
+    /* USER CODE END RTOS_SEMAPHORES */
 
-  /* USER CODE BEGIN RTOS_TIMERS */
+    /* USER CODE BEGIN RTOS_TIMERS */
     /* start timers, add new ones, ... */
-  /* USER CODE END RTOS_TIMERS */
+    /* USER CODE END RTOS_TIMERS */
 
-  /* Create the queue(s) */
-  /* creation of rcDataQueue */
-  rcDataQueueHandle = osMessageQueueNew (1, 18, &rcDataQueue_attributes);
+    /* Create the queue(s) */
+    /* creation of rcDataQueue */
+    rcDataQueueHandle = osMessageQueueNew(1, 18, &rcDataQueue_attributes);
 
-  /* USER CODE BEGIN RTOS_QUEUES */
+    /* creation of CtoCQueue */
+    CtoCQueueHandle = osMessageQueueNew(1, sizeof(BMI088_Init_typedef), &CtoCQueue_attributes);
+
+    /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
-  /* USER CODE END RTOS_QUEUES */
+    /* USER CODE END RTOS_QUEUES */
 
-  /* Create the thread(s) */
-  /* creation of DebugTask */
-  DebugTaskHandle = osThreadNew(StartDebugTask, NULL, &DebugTask_attributes);
+    /* Create the thread(s) */
+    /* creation of DebugTask */
+    DebugTaskHandle = osThreadNew(StartDebugTask, NULL, &DebugTask_attributes);
 
-  /* creation of RemoteTask */
-  RemoteTaskHandle = osThreadNew(StartRemoteTask, NULL, &RemoteTask_attributes);
+    /* creation of RemoteTask */
+    RemoteTaskHandle = osThreadNew(StartRemoteTask, NULL, &RemoteTask_attributes);
 
-  /* creation of CanTask */
-  CanTaskHandle = osThreadNew(StartCanTask, NULL, &CanTask_attributes);
+    /* creation of CanTask */
+    CanTaskHandle = osThreadNew(StartCanTask, NULL, &CanTask_attributes);
 
-  /* creation of TOTask */
-  TOTaskHandle = osThreadNew(StartTOTask, NULL, &TOTask_attributes);
+    /* creation of TOTask */
+    TOTaskHandle = osThreadNew(StartTOTask, NULL, &TOTask_attributes);
 
-  /* USER CODE BEGIN RTOS_THREADS */
+    /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
-  /* USER CODE END RTOS_THREADS */
+    /* USER CODE END RTOS_THREADS */
 
-  /* USER CODE BEGIN RTOS_EVENTS */
+    /* USER CODE BEGIN RTOS_EVENTS */
     /* add events, ... */
-  /* USER CODE END RTOS_EVENTS */
-
+    /* USER CODE END RTOS_EVENTS */
 }
 
 /* USER CODE BEGIN Header_StartDebugTask */
@@ -203,119 +209,116 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE END Header_StartDebugTask */
 void StartDebugTask(void *argument)
 {
-  /* USER CODE BEGIN StartDebugTask */
+    /* USER CODE BEGIN StartDebugTask */
     /* Infinite loop */
     for (;;)
     {
-        // printf("hello world\r\n");
-        HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
-        osDelay(100);
-        // HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
-        // osDelay(750);
-        // HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
-        // osDelay(750);
+    // printf("hello world\r\n");
+    HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
+    now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
+    now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
+    // 调试打印：实际编码和虚拟坐标（使用外部变量，避免函数调用）
+    printf("Yaw> RealS:%d RealB:%d | VirtualS:%d VirtualB:%d | RC:%d |\r\n",
+           now_SmallYaw_count,
+           now_BigYaw_count,
+           virtual_small,
+           virtual_big,
+           global_rc_control.rc.ch[2]); // 外部变量直接访问
+    osDelay(100);
+    // HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
+    // osDelay(750);
+    // HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
+    // osDelay(750);
     }
-  /* USER CODE END StartDebugTask */
+    /* USER CODE END StartDebugTask */
 }
 
 /* USER CODE BEGIN Header_StartRemoteTask */
 /**
-* @brief Function implementing the RemoteTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the RemoteTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_StartRemoteTask */
 void StartRemoteTask(void *argument)
 {
-  /* USER CODE BEGIN StartRemoteTask */
-  uint8_t raw_rc_data[18] = {0};  // 原始接收缓冲区
-  RC_ctrl_t current_rc_data = {0};
-  uint8_t num = 0;
-  /* Infinite loop */
-  for(;;)
-  {
-    if (osMessageQueueGet(rcDataQueueHandle, raw_rc_data, NULL, osWaitForever) == osOK)
+    /* USER CODE BEGIN StartRemoteTask */
+    uint8_t raw_rc_data[18] = {0}; // 原始接收缓冲区
+    RC_ctrl_t current_rc_data = {0};
+    uint8_t num = 0;
+    /* Infinite loop */
+    for (;;)
     {
-      // 解析原始数据到结构体
-      Message_Remote_to_rc(raw_rc_data, &current_rc_data);
-      
-      // 更新全局变量（供其他任务使用）
-      memcpy(&global_rc_control, &current_rc_data, sizeof(RC_ctrl_t));
-      
-      // 处理遥控器数据
-      if (num > 200)
-      {
-        RC_Data_Print(&current_rc_data);
-        printf("Remote Control Data Received\n");
-        num = 0;
-      }
-      num++;
+        if (osMessageQueueGet(rcDataQueueHandle, raw_rc_data, NULL, osWaitForever) == osOK)
+        {
+            // 解析原始数据到结构体
+            Message_Remote_to_rc(raw_rc_data, &current_rc_data);
+
+            // 更新全局变量（供其他任务使用）
+            memcpy(&global_rc_control, &current_rc_data, sizeof(RC_ctrl_t));
+
+            // 处理遥控器数据
+            if (num > 200)
+            {
+                RC_Data_Print(&current_rc_data);
+                printf("Remote Control Data Received\n");
+                num = 0;
+            }
+            num++;
+        }
     }
-  }
-  /* USER CODE END StartRemoteTask */
+    /* USER CODE END StartRemoteTask */
 }
 
 /* USER CODE BEGIN Header_StartCanTask */
 /**
-* @brief Function implementing the CanTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the CanTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_StartCanTask */
 void StartCanTask(void *argument)
 {
-  /* USER CODE BEGIN StartCanTask */
-  osDelay(100);
-  Gimbal_Control_Init();
-  Gimbal_Shoot_Init();
-  Gimbal_Trigger_Init();
-  /* Infinite loop */
-  for(;;)
-  {
-    Gimbal_CtoC_Remote();   //说出了谁的心声，周瑞
-    Gimbal_Trigger_Control();
-	  Gimbal_Shoot_Control();
-    // Motor_6020_Voltage1(0, 0, 0, 0, &hcan2);
-    Gimbal_Control_Loop();
-    // Gimbal_SmallYaw_Control();
-    // HAL_IWDG_Refresh(&hiwdg);
-    // Gimbal_Pitch_Control();
-    // Motor_6020_Voltage1((int16_t)BigYaw_SpeedPID.OUT, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
-    osDelay(10);
-  }
-  /* USER CODE END StartCanTask */
+    /* USER CODE BEGIN StartCanTask */
+    osDelay(100);
+    Gimbal_Control_Init();
+    Gimbal_Shoot_Init();
+    Gimbal_Trigger_Init();
+    /* Infinite loop */
+    for (;;)
+    {
+        Gimbal_CtoC_Remote(); // 说出了谁的心声，周瑞
+        Gimbal_Trigger_Control();
+        Gimbal_Shoot_Control();
+        // Motor_6020_Voltage1(0, 0, 0, 0, &hcan2);
+        Gimbal_Control_Loop();
+        // Gimbal_SmallYaw_Control();
+        // HAL_IWDG_Refresh(&hiwdg);
+        // Gimbal_Pitch_Control();
+        // Motor_6020_Voltage1((int16_t)BigYaw_SpeedPID.OUT, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
+        osDelay(10);
+    }
+    /* USER CODE END StartCanTask */
 }
 
 /* USER CODE BEGIN Header_StartTOTask */
 /**
-* @brief Function implementing the TOTask thread.
-* @param argument: Not used
-* @retval None
-*/
+ * @brief Function implementing the TOTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_StartTOTask */
 void StartTOTask(void *argument)
 {
-  /* USER CODE BEGIN StartTOTask */
-  osDelay(20);
+    /* USER CODE BEGIN StartTOTask */
+    osDelay(20);
 
-  /* Infinite loop */
-  for(;;)
-  {
-    now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
-    now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
-    
-    // 调试打印：实际编码和虚拟坐标（使用外部变量，避免函数调用）
-    printf("Yaw> RealS:%d RealB:%d | VirtualS:%d VirtualB:%d | RC:%d |\r\n", 
-           now_SmallYaw_count, 
-           now_BigYaw_count,
-           virtual_small,
-           virtual_big,
-           global_rc_control.rc.ch[2]
-           );  // 外部变量直接访问
-    
+    /* Infinite loop */
+    for (;;)
+    {
     osDelay(500);
-  }
-  /* USER CODE END StartTOTask */
+    }
+    /* USER CODE END StartTOTask */
 }
 
 /* Private application code --------------------------------------------------*/
@@ -329,7 +332,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         {
             osMessageQueuePut(rcDataQueueHandle, receiveData, 0, 0);
         }
-        
+
         // 清除IDLE中断标志
         __HAL_UART_CLEAR_IDLEFLAG(huart);
 
@@ -353,14 +356,13 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 
         // 清除错误标志
         __HAL_UART_CLEAR_FLAG(huart, UART_FLAG_PE | UART_FLAG_FE | UART_FLAG_NE | UART_FLAG_ORE);
-        
+
         // 重新初始化UART接收
         memset(receiveData, 0, sizeof(receiveData));
         HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
         __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT);
     }
 }
-
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
@@ -379,57 +381,61 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     if (hcan == &hcan1)
     {
         switch (rx_header.StdId)
-			{
-					case 0x201:
-							CAN1_M3508_DataProcess(0x201,rx_data);break;
-					case 0x202:
-							CAN1_M3508_DataProcess(0x202,rx_data);break;
-					case 0x203:
-							break;
-					case 0x204:
-							break;
-					case 0x205:
-							break;
-					case 0x206:
-							CAN1_M6020_DataProcess(0x206,rx_data);break;
-					case 0x207:
-							CAN1_M2006_DataProcess(0x207,rx_data);break;
-					case 0x208:
-							break;
-					default:
-					{
-							break;
-					}
-			}
+        {
+        case 0x201:
+            CAN1_M3508_DataProcess(0x201, rx_data);
+            break;
+        case 0x202:
+            CAN1_M3508_DataProcess(0x202, rx_data);
+            break;
+        case 0x203:
+            break;
+        case 0x204:
+            break;
+        case 0x205:
+            break;
+        case 0x206:
+            CAN1_M6020_DataProcess(0x206, rx_data);
+            break;
+        case 0x207:
+            CAN1_M2006_DataProcess(0x207, rx_data);
+            break;
+        case 0x208:
+            break;
+        default: {
+            break;
+        }
+        }
     }
     else if (hcan == &hcan2)
     {
-				switch (rx_header.StdId)
-			{
-					case 0x201:
-							break;
-					case 0x202:
-							break;
-					case 0x203:
-							break;
-					case 0x204:
-							break;
-					case 0x205:
-							CAN2_M6020_DataProcess(0x205,rx_data);break;
-					case 0x206:
-							CAN2_M6020_DataProcess(0x206,rx_data);break;
-					case 0x207:
-							break;
-					case 0x208:
-							break;
-					case 0x146:
-							// CToC_AngleProcess(0x146,rx_data,&Can_BMI088_Data);
-              break;
-					default:
-					{
-							break;
-					}
-			}
+        switch (rx_header.StdId)
+        {
+        case 0x201:
+            break;
+        case 0x202:
+            break;
+        case 0x203:
+            break;
+        case 0x204:
+            break;
+        case 0x205:
+            CAN2_M6020_DataProcess(0x205, rx_data);
+            break;
+        case 0x206:
+            CAN2_M6020_DataProcess(0x206, rx_data);
+            break;
+        case 0x207:
+            break;
+        case 0x208:
+            break;
+        case 0x146:
+            CToC_AngleProcess(0x146, rx_data, &Can_BMI088_Data);
+            // break;
+        default: {
+            break;
+        }
+        }
     }
 }
 
@@ -441,8 +447,9 @@ int _write(int fd, char *ptr, int len)
 
 void RC_Data_Print(RC_ctrl_t *rc_data)
 {
-    if (rc_data == NULL) return;
-    
+    if (rc_data == NULL)
+        return;
+
     printf("RC Channels: %d,%d,%d,%d,%d\n",
            rc_data->rc.ch[0], rc_data->rc.ch[1],
            rc_data->rc.ch[2], rc_data->rc.ch[3], rc_data->rc.ch[4]);
@@ -455,4 +462,3 @@ void RC_Data_Print(RC_ctrl_t *rc_data)
 }
 
 /* USER CODE END Application */
-
