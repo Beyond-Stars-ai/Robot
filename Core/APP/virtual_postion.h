@@ -46,7 +46,7 @@ void Virtual_Yaw_Init(void);
 // 更新（控制周期调用）
 // 输入：遥控器值、当前实际编码
 // 输出：更新后的目标编码
-void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big);
+void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big, float gyro_yaw);
 
 // 获取目标（控制层调用）
 float Virtual_Yaw_GetTarget_Small(void);

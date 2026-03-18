@@ -71,7 +71,8 @@ extern BMI088_Init_typedef SmallYaw_BMI088_Data;
 uint8_t receiveData[18];
 RC_ctrl_t global_rc_control; // 全局遥控器数据
 
-int16_t origin_BigYaw_count = 7744;
+// int16_t origin_BigYaw_count = 7744;//正位置
+int16_t origin_BigYaw_count = 3783;//偏位置
 int16_t origin_SmallYaw_count = 2375;
 
 int16_t now_BigYaw_count = 0;
@@ -213,6 +214,7 @@ void StartDebugTask(void *argument)
     {
         // printf("hello world\r\n");
         HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
+        // HAL_IWDG_Refresh(&hiwdg);  // 添加喂狗操作
         osDelay(100);
         // HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
         // osDelay(750);

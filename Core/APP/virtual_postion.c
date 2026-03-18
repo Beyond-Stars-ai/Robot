@@ -67,12 +67,14 @@ void Virtual_Yaw_Init(void)
 //   最终效果：BigYaw 承接了 (virtual_coord - small_part)，
 //             在稳态下 small_part 为 0，即 SmallYaw 归中，BigYaw 全权负责朝向。
 //
-void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
+void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big, float gyro_yaw)
 {
     // SmallYaw 最大偏转限幅（8192 * 0.40 = 3276.8）
     const float SMALL_LIMIT = 3276.8f; 
     // 衰减系数（控制回中速度），0.98 表示每拍缩小 2%
     const float DECAY_RATE  = 0.1f;
+    // 陀螺仪跟随增益
+    const float GYRO_FOLLOW_GAIN = 0.3f;  // 需要添加此行
 
     //---------- 1. 记录实际编码 ----------
     g_state.real_small_now = real_small;
@@ -84,6 +86,19 @@ void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
         delta = VIRTUAL_RC_SENS * (float)rc_value;
     }
     g_state.virtual_coord = normalize_angle(g_state.virtual_coord + delta);
+
+    //---------- 2.5 陀螺仪数据融合 ----------
+    // 将陀螺仪Yaw角作为额外输入，用于底盘矫正
+    // 计算陀螺仪Yaw角与当前虚拟坐标的差值
+    float gyro_error = gyro_yaw - g_state.virtual_coord;
+    
+    // 规范化角度差到[-180, 180]范围（假设陀螺仪Yaw以度为单位）
+    while (gyro_error > 180.0f) gyro_error -= 360.0f;
+    while (gyro_error < -180.0f) gyro_error += 360.0f;
+    
+    // 将陀螺仪Yaw角差值应用到虚拟坐标
+    g_state.virtual_coord += gyro_error * GYRO_FOLLOW_GAIN;
+    g_state.virtual_coord = normalize_angle(g_state.virtual_coord);
 
     //---------- 3. 处理“神龙摆尾”跟随逻辑 ----------
     //

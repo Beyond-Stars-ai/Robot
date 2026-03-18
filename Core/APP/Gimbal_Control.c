@@ -95,10 +95,14 @@ void Gimbal_Yaw_Control(void)
     float real_big = (float)Can2_M6020_MotorStatus[0].Angle;
     float real_small_speed = (float)Can2_M6020_MotorStatus[1].Speed;
     float real_big_speed = (float)Can2_M6020_MotorStatus[0].Speed;
+
+    //---------- 1.5 获取陀螺仪Yaw角 ----------
+    extern BMI088_Init_typedef Can_BMI088_Data;
+    float gyro_yaw = Can_BMI088_Data.Yaw;
     
     //---------- 2. 更新虚拟坐标层 ----------
     // 遥控器值传递给虚拟层，虚拟层处理所有坐标转换
-    Virtual_Yaw_Update(global_rc_control.rc.ch[2], real_small, real_big);
+    Virtual_Yaw_Update(global_rc_control.rc.ch[2], real_small, real_big, gyro_yaw);
     
     //---------- 3. 从虚拟层获取目标（隔离！只取结果）----------
     float target_small = Virtual_Yaw_GetTarget_Small();
