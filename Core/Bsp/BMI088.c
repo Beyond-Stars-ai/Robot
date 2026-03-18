@@ -1,11 +1,11 @@
-#include "BMI088.h"
-#include "can.h"
-#include "BMI088driver.h"
 #include <math.h>
+#include "can.h"
+#include "BMI088.h"
+#include "BMI088driver.h"
 #include "Parameter.h"
+//===============变量区
 
-BMI088_Init_typedef BMI088_Data;
-
+//===============公共函数
 //简介：获取欧拉角数据(单位：°)
 BMI088_Init_typedef BMI088_GetData(BMI088_Init_typedef *data)
 {
@@ -45,7 +45,8 @@ BMI088_Init_typedef BMI088_GetData(BMI088_Init_typedef *data)
 	
 	return *data;
 }
-void BMI088_Can_Angle(int16_t data1, int16_t data2, 
+
+void BMI088_Angle(int16_t data1, int16_t data2, 
 										 int16_t data3, int16_t data4,
 										 CAN_HandleTypeDef *hcan)//CANID:0x200 电机ID:1-4 (-10000,10000)
 {
@@ -70,7 +71,7 @@ void BMI088_Can_Angle(int16_t data1, int16_t data2,
 }
 
 
-void BMI088_Can_Gyro(int16_t data1, int16_t data2, 
+void BMI088_Gyro(int16_t data1, int16_t data2, 
 										 int16_t data3, int16_t data4,
 										 CAN_HandleTypeDef *hcan)//CANID:0x200 电机ID:1-4 (-10000,10000)
 {
@@ -95,7 +96,7 @@ void BMI088_Can_Gyro(int16_t data1, int16_t data2,
 }
 
 
-void BMI088_Can_Accel(int16_t data1, int16_t data2, 
+void BMI088_Accel(int16_t data1, int16_t data2, 
 											int16_t data3, int16_t data4,
 											CAN_HandleTypeDef *hcan)//CANID:0x200 电机ID:1-4 (-10000,10000)
 {

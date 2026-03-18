@@ -13,15 +13,13 @@ typedef struct
 }BMI088_Init_typedef;
 
 BMI088_Init_typedef BMI088_GetData(BMI088_Init_typedef *data);
-
-void BMI088_Can_Angle(int16_t data1, int16_t data2, 
-										 int16_t data3, int16_t data4,
-										 CAN_HandleTypeDef *hcan);
-
-void BMI088_Can_Gyro(	int16_t data1, int16_t data2, 
-															int16_t data3, int16_t data4,
-															CAN_HandleTypeDef *hcan);
-void BMI088_Can_Accel(int16_t data1, int16_t data2, 
-															int16_t data3, int16_t data4,
-															CAN_HandleTypeDef *hcan);
+void BMI088_Angle(int16_t data1, int16_t data2, 
+									int16_t data3, int16_t data4,
+									CAN_HandleTypeDef *hcan);
+void BMI088_Gyro(	int16_t data1, int16_t data2, 
+									int16_t data3, int16_t data4,
+									CAN_HandleTypeDef *hcan);
+void BMI088_Accel(int16_t data1, int16_t data2, 
+									int16_t data3, int16_t data4,
+									CAN_HandleTypeDef *hcan);
 #endif // BMI088_H
