@@ -61,8 +61,6 @@ extern IWDG_HandleTypeDef hiwdg;
 extern M6020_Motor Can2_M6020_MotorStatus[7];
 
 extern BMI088_Init_typedef Can_BMI088_Data;
-extern BMI088_Init_typedef BigYaw_BMI088_Data;
-extern BMI088_Init_typedef SmallYaw_BMI088_Data;
 
 /* USER CODE END PTD */
 
@@ -301,16 +299,15 @@ void StartTOTask(void *argument)
   {
     now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
     now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
-    
-    printf("IMU> Yaw:%d.%02d Pitch:%d.%02d Roll:%d.%02d Temp:%d.%01d\r\n", 
-       (int)Can_BMI088_Data.Yaw, 
-       (int)(fabs(Can_BMI088_Data.Yaw) * 100) % 100,
-       (int)Can_BMI088_Data.Pitch,
-       (int)(fabs(Can_BMI088_Data.Pitch) * 100) % 100,
-       (int)Can_BMI088_Data.Roll,
-       (int)(fabs(Can_BMI088_Data.Roll) * 100) % 100,
-       (int)Can_BMI088_Data.Temp,
-       (int)(fabs(Can_BMI088_Data.Temp) * 10) % 10);
+    // printf("IMU> Yaw:%d.%02d Pitch:%d.%02d Roll:%d.%02d Temp:%d.%01d\r\n", 
+    //    (int)Can_BMI088_Data.Yaw, 
+    //    (int)(fabs(Can_BMI088_Data.Yaw) * 100) % 100,
+    //    (int)Can_BMI088_Data.Pitch,
+    //    (int)(fabs(Can_BMI088_Data.Pitch) * 100) % 100,
+    //    (int)Can_BMI088_Data.Roll,
+    //    (int)(fabs(Can_BMI088_Data.Roll) * 100) % 100,
+    //    (int)Can_BMI088_Data.Temp,
+    //    (int)(fabs(Can_BMI088_Data.Temp) * 10) % 10);
     // 调试打印：实际编码和虚拟坐标（使用外部变量，避免函数调用）
     printf("Yaw> RealS:%d RealB:%d | VirtualS:%d VirtualB:%d | RC:%d |\r\n", 
            now_SmallYaw_count, 

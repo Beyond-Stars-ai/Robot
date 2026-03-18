@@ -9,10 +9,6 @@ void Gimbal_CtoC_Remote(void);
 void CToC_AngleProcess(uint32_t ID,uint8_t *Data,BMI088_Init_typedef *data);
 
 extern BMI088_Init_typedef Can_BMI088_Data;
-extern BMI088_Init_typedef BigYaw_BMI088_Data;
-extern BMI088_Init_typedef SmallYaw_BMI088_Data;
-
-
 
 #endif //GIMBAL_CTOC_H
 

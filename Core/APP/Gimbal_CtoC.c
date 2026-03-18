@@ -1,8 +1,7 @@
 #include "Gimbal_CtoC.h"
 
 BMI088_Init_typedef Can_BMI088_Data = {0};
-BMI088_Init_typedef BigYaw_BMI088_Data = {0};
-BMI088_Init_typedef SmallYaw_BMI088_Data = {0};
+
 extern RC_ctrl_t global_rc_control; // 全局遥控器数据
 
 static void CToC_MasterSendData(int16_t data1, int16_t data2,
