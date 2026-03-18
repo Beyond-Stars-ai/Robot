@@ -58,14 +58,18 @@ extern UART_HandleTypeDef huart3;
 extern UART_HandleTypeDef huart6;
 extern IWDG_HandleTypeDef hiwdg;
 
-extern BMI088_Init_typedef Can_BMI088_Data;
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+//  中断缓冲变量
 uint8_t receiveData[18];
+uint8_t CtoC_data[8];
+
+//  全局变量
 RC_ctrl_t global_rc_control; // 全局遥控器数据
+extern BMI088_Init_typedef Can_BMI088_Data;
 
 int16_t origin_BigYaw_count = 7744;
 int16_t origin_SmallYaw_count = 2375;
@@ -150,9 +154,6 @@ void MX_FREERTOS_Init(void)
     memset(receiveData, 0, sizeof(receiveData));
     HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
 
-    // 延时确保Can数据接收稳定
-    // osDelay(50);
-    // Gimbal_Control_Init();
     /* USER CODE END Init */
 
     /* USER CODE BEGIN RTOS_MUTEX */
@@ -172,7 +173,7 @@ void MX_FREERTOS_Init(void)
     rcDataQueueHandle = osMessageQueueNew(1, 18, &rcDataQueue_attributes);
 
     /* creation of CtoCQueue */
-    CtoCQueueHandle = osMessageQueueNew(1, sizeof(BMI088_Init_typedef), &CtoCQueue_attributes);
+    CtoCQueueHandle = osMessageQueueNew(1, 8, &CtoCQueue_attributes);
 
     /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
@@ -213,22 +214,22 @@ void StartDebugTask(void *argument)
     /* Infinite loop */
     for (;;)
     {
-    // printf("hello world\r\n");
-    HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
-    now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
-    now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
-    // 调试打印：实际编码和虚拟坐标（使用外部变量，避免函数调用）
-    printf("Yaw> RealS:%d RealB:%d | VirtualS:%d VirtualB:%d | RC:%d |\r\n",
-           now_SmallYaw_count,
-           now_BigYaw_count,
-           virtual_small,
-           virtual_big,
-           global_rc_control.rc.ch[2]); // 外部变量直接访问
-    osDelay(100);
-    // HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
-    // osDelay(750);
-    // HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
-    // osDelay(750);
+        // printf("hello world\r\n");
+        HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
+        now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
+        now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
+        // 调试打印：实际编码和虚拟坐标（使用外部变量，避免函数调用）
+        printf("Yaw> RealS:%d RealB:%d | VirtualS:%d VirtualB:%d | RC:%d |\r\n",
+               now_SmallYaw_count,
+               now_BigYaw_count,
+               virtual_small,
+               virtual_big,
+               global_rc_control.rc.ch[2]); // 外部变量直接访问
+        osDelay(100);
+        // HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
+        // osDelay(750);
+        // HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
+        // osDelay(750);
     }
     /* USER CODE END StartDebugTask */
 }
@@ -258,9 +259,10 @@ void StartRemoteTask(void *argument)
             memcpy(&global_rc_control, &current_rc_data, sizeof(RC_ctrl_t));
 
             // 处理遥控器数据
-            if (num > 200)
+            if (num > 20)
             {
                 RC_Data_Print(&current_rc_data);
+                printf("Yaw: %.2f\n", Can_BMI088_Data.Yaw);
                 printf("Remote Control Data Received\n");
                 num = 0;
             }
@@ -290,7 +292,6 @@ void StartCanTask(void *argument)
         Gimbal_CtoC_Remote(); // 说出了谁的心声，周瑞
         Gimbal_Trigger_Control();
         Gimbal_Shoot_Control();
-        // Motor_6020_Voltage1(0, 0, 0, 0, &hcan2);
         Gimbal_Control_Loop();
         // Gimbal_SmallYaw_Control();
         // HAL_IWDG_Refresh(&hiwdg);
@@ -311,12 +312,20 @@ void StartCanTask(void *argument)
 void StartTOTask(void *argument)
 {
     /* USER CODE BEGIN StartTOTask */
-    osDelay(20);
-
+    uint8_t raw_CtoC_data[8];
+    BMI088_Init_typedef current_CtoC_data = {0};
     /* Infinite loop */
     for (;;)
     {
-    osDelay(500);
+        if (osMessageQueueGet(CtoCQueueHandle, raw_CtoC_data, NULL, osWaitForever) == osOK)
+        {
+            // 解析原始数据到结构体
+            CToC_AngleProcess(raw_CtoC_data, &current_CtoC_data);
+
+            // 更新全局变量（供其他任务使用）
+            memcpy(&Can_BMI088_Data, &current_CtoC_data, sizeof(BMI088_Init_typedef));
+
+        }
     }
     /* USER CODE END StartTOTask */
 }
@@ -429,9 +438,15 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
             break;
         case 0x208:
             break;
-        case 0x146:
-            CToC_AngleProcess(0x146, rx_data, &Can_BMI088_Data);
-            // break;
+
+        case 0x146: {
+            // 将数据放入队列，交给任务处理
+            if (CtoCQueueHandle != NULL)
+            {
+                osMessageQueuePut(CtoCQueueHandle, CtoC_data, 0, 0);
+            }
+            break;
+        }
         default: {
             break;
         }

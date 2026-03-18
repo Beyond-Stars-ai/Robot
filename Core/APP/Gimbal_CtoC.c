@@ -34,7 +34,7 @@ void Gimbal_CtoC_Remote(void)
                         global_rc_control.rc.ch[2], global_rc_control.rc.ch[3], &hcan2);
 }
 
-void CToC_AngleProcess(uint32_t ID,uint8_t *Data,BMI088_Init_typedef *data)
+void CToC_AngleProcess(uint8_t *Data,BMI088_Init_typedef *data)
 {
 	int16_t yaw = (int16_t)((Data[0] << 8) | Data[1]);
 	int16_t pitch = (int16_t)((Data[2] << 8) | Data[3]);

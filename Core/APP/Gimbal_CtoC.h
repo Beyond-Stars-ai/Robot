@@ -8,7 +8,7 @@ extern BMI088_Init_typedef Can_BMI088_Data;
 void Gimbal_CtoC_Remote(void);
 //void CToC_GyroProcess(uint32_t ID,uint8_t *Data);
 //void CToC_AccelProcess(uint32_t ID,uint8_t *Data);
-void CToC_AngleProcess(uint32_t ID,uint8_t *Data,BMI088_Init_typedef *data);
+void CToC_AngleProcess(uint8_t *Data,BMI088_Init_typedef *data);
 
 
 
