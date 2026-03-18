@@ -226,10 +226,6 @@ void StartDebugTask(void *argument)
                virtual_big,
                global_rc_control.rc.ch[2]); // 外部变量直接访问
         osDelay(100);
-        // HAL_GPIO_TogglePin(LED_B_GPIO_Port, LED_B_Pin);
-        // osDelay(750);
-        // HAL_GPIO_TogglePin(LED_G_GPIO_Port, LED_G_Pin);
-        // osDelay(750);
     }
     /* USER CODE END StartDebugTask */
 }
@@ -324,7 +320,6 @@ void StartTOTask(void *argument)
 
             // 更新全局变量（供其他任务使用）
             memcpy(&Can_BMI088_Data, &current_CtoC_data, sizeof(BMI088_Init_typedef));
-
         }
     }
     /* USER CODE END StartTOTask */
