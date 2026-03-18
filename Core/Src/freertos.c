@@ -58,7 +58,7 @@ extern UART_HandleTypeDef huart3;
 extern UART_HandleTypeDef huart6;
 extern IWDG_HandleTypeDef hiwdg;
 
-extern M6020_Motor Can2_M6020_MotorStatus[7];
+extern BMI088_Init_typedef Can_BMI088_Data;
 
 /* USER CODE END PTD */
 
