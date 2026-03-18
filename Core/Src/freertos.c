@@ -165,7 +165,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of rcDataQueue */
-  rcDataQueueHandle = osMessageQueueNew (1, sizeof(RC_ctrl_t), &rcDataQueue_attributes);
+  rcDataQueueHandle = osMessageQueueNew (1, 18, &rcDataQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
@@ -228,22 +228,28 @@ void StartDebugTask(void *argument)
 void StartRemoteTask(void *argument)
 {
   /* USER CODE BEGIN StartRemoteTask */
+  uint8_t raw_rc_data[18] = {0};  // 原始接收缓冲区
   RC_ctrl_t current_rc_data = {0};
   uint8_t num = 0;
   /* Infinite loop */
   for(;;)
   {
-    if (osMessageQueueGet(rcDataQueueHandle, &current_rc_data, NULL, osWaitForever) == osOK)
+    if (osMessageQueueGet(rcDataQueueHandle, raw_rc_data, NULL, osWaitForever) == osOK)
     {
-    // 处理遥控器数据
-    if (num>200)
-    // if (num>20)
-    {
-    RC_Data_Print(&current_rc_data);
-    printf("Remote Control Data Received\n");
-    num = 0;
-    }
-    num++;
+      // 解析原始数据到结构体
+      Message_Remote_to_rc(raw_rc_data, &current_rc_data);
+      
+      // 更新全局变量（供其他任务使用）
+      memcpy(&global_rc_control, &current_rc_data, sizeof(RC_ctrl_t));
+      
+      // 处理遥控器数据
+      if (num > 200)
+      {
+        RC_Data_Print(&current_rc_data);
+        printf("Remote Control Data Received\n");
+        num = 0;
+      }
+      num++;
     }
   }
   /* USER CODE END StartRemoteTask */
@@ -318,13 +324,10 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
     if (huart->Instance == USART3)
     {
-        // 直接解析到全局变量
-        Message_Remote_to_rc(receiveData, &global_rc_control);
-        
-        // 通过队列发送数据
+        // 通过队列发送原始数据（在中断中不做解析）
         if (rcDataQueueHandle != NULL)
         {
-            osMessageQueuePut(rcDataQueueHandle, &global_rc_control, 0, 0);
+            osMessageQueuePut(rcDataQueueHandle, receiveData, 0, 0);
         }
         
         // 清除IDLE中断标志
