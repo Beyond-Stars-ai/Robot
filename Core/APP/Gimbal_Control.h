@@ -6,6 +6,7 @@
 #include "Motor.h"
 #include "remote_control.h"
 #include "virtual_postion.h"
+#include "BMI088.h"
 
 //=========================== 外部变量 ===========================//
 
