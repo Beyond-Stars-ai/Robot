@@ -41,6 +41,7 @@
 #include "Gimbal_Trigger.h"
 
 #include "CalTask_Yaw.h"
+#include "Chassis_Follow.h"
 // #include "Gimbal_SmallYaw.h"
 // #include "Gimbal_Pitch.h"
 // #include "Gimbal_Yaw.h"
@@ -66,6 +67,7 @@ extern IWDG_HandleTypeDef hiwdg;
 
 //  中断缓冲变量
 uint8_t receiveData[18];
+
 
 //  全局变量
 RC_ctrl_t global_rc_control; // 全局遥控器数据
@@ -361,6 +363,9 @@ void StartCalTask(void *argument)
     /* USER CODE BEGIN StartCalTask */
     osDelay(100);
     
+    // 初始化底盘跟随模块
+    Chassis_Follow_Init(origin_BigYaw_count);
+    
     int n = 0;
     /* Infinite loop */
     for (;;)
@@ -368,6 +373,10 @@ void StartCalTask(void *argument)
         float yaw = Can_BMI088_Data.Yaw;  //  yaw轴的定义是-180度到180度
         CalTask_Yaw_Update(yaw);
         float delta = CalTask_Yaw_GetDelta();
+        
+        // 更新底盘跟随（积分delta，输出补偿值）
+        Chassis_Follow_Update(delta);
+        
         n++;
         if (n > 20)
         {

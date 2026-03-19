@@ -1,6 +1,7 @@
 #include "Gimbal_Control.h"
 #include "can.h"
 #include <math.h>
+#include "Chassis_Follow.h"
 
 //=========================== PID定义 ===========================//
 
@@ -101,11 +102,11 @@ void Gimbal_Yaw_Control(void)
     Virtual_Yaw_Update(global_rc_control.rc.ch[2], real_small, real_big);
     
     //---------- 3. 从虚拟层获取目标（隔离！只取结果）----------
+    // SmallYaw：仅由virtual_position控制（不受底盘跟随影响）
     float target_small = Virtual_Yaw_GetTarget_Small();
-    //  float target_small = Virtual_Yaw_GetTarget_Small();
-    float target_big = Virtual_Yaw_GetTarget_Big();
-    //  float target_big = Virtual_Yaw_GetTarget_Big() + Chassis_GetTarget_Big;
-    //  我目前的代码逻辑可能会存在着问题，记得审查会不会影响smallyaw的逻辑
+    
+    // BigYaw：virtual_position目标 + 底盘跟随补偿
+    float target_big = Virtual_Yaw_GetTarget_Big() + Chassis_Follow_GetTarget_Big();
     
     //---------- 4. SmallYaw控制 ----------
     PID_PositionSetNeedValue(&SmallYaw_PositionPID, target_small);
