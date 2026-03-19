@@ -46,9 +46,14 @@ void Virtual_Yaw_Init(void);
 // 更新（控制周期调用）
 // 输入：遥控器值、当前实际编码
 // 输出：更新后的目标编码
+//
+// 【注意】本模块只负责云台相对于地面的绝对朝向控制
+//        如需底盘跟随补偿，请在控制层对反馈值进行处理：
+//        real_big_compensated = real_big - Chassis_Follow_GetTarget_Big()
 void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big);
 
 // 获取目标（控制层调用）
+// 返回的是期望的绝对朝向编码值（相对于地面，而非底盘）
 float Virtual_Yaw_GetTarget_Small(void);
 float Virtual_Yaw_GetTarget_Big(void);
 

@@ -87,42 +87,73 @@ void Gimbal_Pitch_Control(void)
     Motor_6020_Voltage1(0, (int16_t)Pitch_SpeedPID.OUT, 0, 0, &hcan1);
 }
 
-//=========================== Yaw控制（只从虚拟层取值）===========================//
+//=========================== 工具函数：编码器归一化 ===========================//
+
+static float normalize_encoder_diff(float angle)
+{
+    while (angle < -4096.0f) angle += 8192.0f;
+    while (angle >= 4096.0f) angle -= 8192.0f;
+    return angle;
+}
+
+//=========================== Yaw控制（反馈补偿方案）===========================//
+//
+// 【核心逻辑】
+//   Virtual_Yaw：负责维持云台相对于地面的绝对朝向（闭环）
+//   Chassis_Follow：负责抵消底盘转动的影响（前馈补偿反馈值）
+//
+// 【数学等价】
+//   方法1（补偿目标）：error = (V + C) - R
+//   方法2（补偿反馈）：error = V - (R - C)  <-- 本方案
+//
+// 【优势】
+//   - Virtual_Yaw 保持单一职责：只需关注绝对朝向
+//   - 底盘跟随与虚拟坐标真正解耦
+//   - 便于单独开关底盘跟随功能
 
 void Gimbal_Yaw_Control(void)
 {
-    //---------- 1. 获取实际编码（给虚拟层）----------
+    //---------- 1. 获取原始编码（给虚拟层计算目标）----------
     float real_small = (float)Can2_M6020_MotorStatus[1].Angle;
     float real_big = (float)Can2_M6020_MotorStatus[0].Angle;
     float real_small_speed = (float)Can2_M6020_MotorStatus[1].Speed;
     float real_big_speed = (float)Can2_M6020_MotorStatus[0].Speed;
     
     //---------- 2. 更新虚拟坐标层 ----------
-    // 遥控器值传递给虚拟层，虚拟层处理所有坐标转换
+    // 虚拟层基于原始编码计算目标，保持对绝对朝向的闭环控制
     Virtual_Yaw_Update(global_rc_control.rc.ch[2], real_small, real_big);
     
-    //---------- 3. 从虚拟层获取目标（隔离！只取结果）----------
+    //---------- 3. 从虚拟层获取目标 ----------
     // SmallYaw：仅由virtual_position控制（不受底盘跟随影响）
     float target_small = Virtual_Yaw_GetTarget_Small();
     
-    // BigYaw：virtual_position目标 + 底盘跟随补偿
-    float target_big = Virtual_Yaw_GetTarget_Big() + Chassis_Follow_GetTarget_Big();
+    // BigYaw：仅由virtual_position控制绝对朝向
+    float target_big = Virtual_Yaw_GetTarget_Big();
     
-    //---------- 4. SmallYaw控制 ----------
+    //---------- 4. 底盘跟随补偿（反馈值修正）----------
+    // 【关键】将底盘转动的影响从反馈中"扣除"
+    // 这样PID看到的是"相对于地面的编码值"
+    float chassis_compensation = Chassis_Follow_GetTarget_Big();
+    float real_big_compensated = real_big - chassis_compensation;
+    
+    // 处理编码器环绕（补偿后可能越界）
+    real_big_compensated = normalize_encoder_diff(real_big_compensated);
+    
+    //---------- 5. SmallYaw控制 ----------
     PID_PositionSetNeedValue(&SmallYaw_PositionPID, target_small);
     PID_PositionCalc_Encoder(&SmallYaw_PositionPID, real_small);
     
     PID_PositionSetNeedValue(&SmallYaw_SpeedPID, SmallYaw_PositionPID.OUT);
     PID_PositionCalc(&SmallYaw_SpeedPID, real_small_speed);
     
-    //---------- 5. BigYaw控制 ----------
+    //---------- 6. BigYaw控制（使用补偿后的反馈）----------
     PID_PositionSetNeedValue(&BigYaw_PositionPID, target_big);
-    PID_PositionCalc_Encoder(&BigYaw_PositionPID, real_big);
+    PID_PositionCalc_Encoder(&BigYaw_PositionPID, real_big_compensated);
     
     PID_PositionSetNeedValue(&BigYaw_SpeedPID, BigYaw_PositionPID.OUT);
     PID_PositionCalc(&BigYaw_SpeedPID, real_big_speed);
     
-    //---------- 6. 发送输出 ----------
+    //---------- 7. 发送输出 ----------
     // BigYaw(ID 0x205, 第1路), SmallYaw(ID 0x206, 第2路)
     Motor_6020_Voltage1((int16_t)BigYaw_SpeedPID.OUT, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
 }

@@ -12,11 +12,18 @@
 //
 // 类似virtual_position的设计风格
 // 输入：CalTask提供的delta_yaw（20ms间隔的yaw变化量）
-// 输出：BigYaw补偿编码器值（与virtual_position输出相加）
+// 输出：BigYaw补偿编码器值（从实际反馈中减去）
 //
-// 核心公式：
-//   target_big = Virtual_Yaw_GetTarget_Big() + Chassis_Follow_GetTarget_Big()
-//   target_small = Virtual_Yaw_GetTarget_Small()  // SmallYaw不受影响
+// 【架构变更说明】
+//   旧方案：补偿目标值 target_big = Virtual_Target + Chassis_Compensation
+//   新方案：补偿反馈值 real_big_compensated = Real_Encoder - Chassis_Compensation
+//
+// 【数学等价】error = (V + C) - R  ==  V - (R - C)
+//
+// 【新方案优势】
+//   1. Virtual_Yaw 保持单一职责：只需关注绝对朝向闭环
+//   2. 便于单独开关底盘跟随（只需注释掉补偿那一行）
+//   3. 目标值保持语义清晰：就是期望的绝对朝向
 //
 //===========================
 
@@ -78,11 +85,17 @@ void Chassis_Follow_Init(int16_t origin_encoder);
 Chassis_Follow_State_t Chassis_Follow_Update(float delta_yaw);
 
 /**
- * @brief 获取BigYaw补偿编码器值
- * @return 补偿编码器值（与Virtual_Yaw_GetTarget_Big()相加）
+ * @brief 获取BigYaw补偿编码器值（用于反馈补偿）
+ * @return 补偿编码器值（应从实际编码器中减去）
  * 
- * @note 在Gimbal_Control中使用：
- *       float target_big = Virtual_Yaw_GetTarget_Big() + Chassis_Follow_GetTarget_Big();
+ * @note 【使用方式变更】
+ *       旧：float target_big = Virtual_Yaw_GetTarget_Big() + Chassis_Follow_GetTarget_Big();
+ *       新：float real_big_compensated = real_big - Chassis_Follow_GetTarget_Big();
+ * 
+ * @note 数学等价性：
+ *       补偿目标：error = (V + C) - R
+ *       补偿反馈：error = V - (R - C)
+ *       两者相等，但后者更利于模块解耦
  */
 float Chassis_Follow_GetTarget_Big(void);
 
