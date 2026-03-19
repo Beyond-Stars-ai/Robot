@@ -359,12 +359,13 @@ void StartTOTask(void *argument)
 void StartCalTask(void *argument)
 {
     /* USER CODE BEGIN StartCalTask */
-    osDelay(20);
+    osDelay(100);
+    
     int n = 0;
     /* Infinite loop */
     for (;;)
     {
-        float yaw = Can_BMI088_Data.Yaw;
+        float yaw = Can_BMI088_Data.Yaw;  //  yaw轴的定义是-180度到180度
         CalTask_Yaw_Update(yaw);
         float delta = CalTask_Yaw_GetDelta();
         n++;
@@ -373,7 +374,6 @@ void StartCalTask(void *argument)
             printf("delta = %d\n", (int)(delta*100));
             n = 0;
         }
-
         osDelay(20);
     }
     /* USER CODE END StartCalTask */
