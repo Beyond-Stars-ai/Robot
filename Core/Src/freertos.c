@@ -19,9 +19,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
-#include "cmsis_os.h"
-#include "main.h"
 #include "task.h"
+#include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -94,39 +94,48 @@ void RC_Data_Print(RC_ctrl_t *rc_data);
 /* Definitions for DebugTask */
 osThreadId_t DebugTaskHandle;
 const osThreadAttr_t DebugTask_attributes = {
-    .name = "DebugTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityNormal,
+  .name = "DebugTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for RemoteTask */
 osThreadId_t RemoteTaskHandle;
 const osThreadAttr_t RemoteTask_attributes = {
-    .name = "RemoteTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+  .name = "RemoteTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for CanTask */
 osThreadId_t CanTaskHandle;
 const osThreadAttr_t CanTask_attributes = {
-    .name = "CanTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+  .name = "CanTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for TOTask */
 osThreadId_t TOTaskHandle;
 const osThreadAttr_t TOTask_attributes = {
-    .name = "TOTask",
-    .stack_size = 128 * 4,
-    .priority = (osPriority_t)osPriorityLow,
+  .name = "TOTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for CalTask */
+osThreadId_t CalTaskHandle;
+const osThreadAttr_t CalTask_attributes = {
+  .name = "CalTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for rcDataQueue */
 osMessageQueueId_t rcDataQueueHandle;
 const osMessageQueueAttr_t rcDataQueue_attributes = {
-    .name = "rcDataQueue"};
+  .name = "rcDataQueue"
+};
 /* Definitions for CtoCQueue */
 osMessageQueueId_t CtoCQueueHandle;
 const osMessageQueueAttr_t CtoCQueue_attributes = {
-    .name = "CtoCQueue"};
+  .name = "CtoCQueue"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -137,68 +146,72 @@ void StartDebugTask(void *argument);
 void StartRemoteTask(void *argument);
 void StartCanTask(void *argument);
 void StartTOTask(void *argument);
+void StartCalTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
-void MX_FREERTOS_Init(void)
-{
-    /* USER CODE BEGIN Init */
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
+void MX_FREERTOS_Init(void) {
+  /* USER CODE BEGIN Init */
     Can_Filter_Init();
 
     // 清除接收缓冲区并开始接收
     memset(receiveData, 0, sizeof(receiveData));
     HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
 
-    /* USER CODE END Init */
+  /* USER CODE END Init */
 
-    /* USER CODE BEGIN RTOS_MUTEX */
+  /* USER CODE BEGIN RTOS_MUTEX */
     /* add mutexes, ... */
-    /* USER CODE END RTOS_MUTEX */
+  /* USER CODE END RTOS_MUTEX */
 
-    /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
     /* add semaphores, ... */
-    /* USER CODE END RTOS_SEMAPHORES */
+  /* USER CODE END RTOS_SEMAPHORES */
 
-    /* USER CODE BEGIN RTOS_TIMERS */
+  /* USER CODE BEGIN RTOS_TIMERS */
     /* start timers, add new ones, ... */
-    /* USER CODE END RTOS_TIMERS */
+  /* USER CODE END RTOS_TIMERS */
 
-    /* Create the queue(s) */
-    /* creation of rcDataQueue */
-    rcDataQueueHandle = osMessageQueueNew(1, 18, &rcDataQueue_attributes);
+  /* Create the queue(s) */
+  /* creation of rcDataQueue */
+  rcDataQueueHandle = osMessageQueueNew (1, 18, &rcDataQueue_attributes);
 
-    /* creation of CtoCQueue */
-    CtoCQueueHandle = osMessageQueueNew(1, 8, &CtoCQueue_attributes);
+  /* creation of CtoCQueue */
+  CtoCQueueHandle = osMessageQueueNew (1, 8, &CtoCQueue_attributes);
 
-    /* USER CODE BEGIN RTOS_QUEUES */
+  /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
-    /* USER CODE END RTOS_QUEUES */
+  /* USER CODE END RTOS_QUEUES */
 
-    /* Create the thread(s) */
-    /* creation of DebugTask */
-    DebugTaskHandle = osThreadNew(StartDebugTask, NULL, &DebugTask_attributes);
+  /* Create the thread(s) */
+  /* creation of DebugTask */
+  DebugTaskHandle = osThreadNew(StartDebugTask, NULL, &DebugTask_attributes);
 
-    /* creation of RemoteTask */
-    RemoteTaskHandle = osThreadNew(StartRemoteTask, NULL, &RemoteTask_attributes);
+  /* creation of RemoteTask */
+  RemoteTaskHandle = osThreadNew(StartRemoteTask, NULL, &RemoteTask_attributes);
 
-    /* creation of CanTask */
-    CanTaskHandle = osThreadNew(StartCanTask, NULL, &CanTask_attributes);
+  /* creation of CanTask */
+  CanTaskHandle = osThreadNew(StartCanTask, NULL, &CanTask_attributes);
 
-    /* creation of TOTask */
-    TOTaskHandle = osThreadNew(StartTOTask, NULL, &TOTask_attributes);
+  /* creation of TOTask */
+  TOTaskHandle = osThreadNew(StartTOTask, NULL, &TOTask_attributes);
 
-    /* USER CODE BEGIN RTOS_THREADS */
+  /* creation of CalTask */
+  CalTaskHandle = osThreadNew(StartCalTask, NULL, &CalTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
-    /* USER CODE END RTOS_THREADS */
+  /* USER CODE END RTOS_THREADS */
 
-    /* USER CODE BEGIN RTOS_EVENTS */
+  /* USER CODE BEGIN RTOS_EVENTS */
     /* add events, ... */
-    /* USER CODE END RTOS_EVENTS */
+  /* USER CODE END RTOS_EVENTS */
+
 }
 
 /* USER CODE BEGIN Header_StartDebugTask */
@@ -210,7 +223,7 @@ void MX_FREERTOS_Init(void)
 /* USER CODE END Header_StartDebugTask */
 void StartDebugTask(void *argument)
 {
-    /* USER CODE BEGIN StartDebugTask */
+  /* USER CODE BEGIN StartDebugTask */
     /* Infinite loop */
     for (;;)
     {
@@ -219,15 +232,15 @@ void StartDebugTask(void *argument)
         now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
         now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
         // 调试打印：实际编码和虚拟坐标（使用外部变量，避免函数调用）
-        printf("Yaw> RealS:%d RealB:%d | VirtualS:%d VirtualB:%d | RC:%d |\r\n",
-               now_SmallYaw_count,
-               now_BigYaw_count,
-               virtual_small,
-               virtual_big,
-               global_rc_control.rc.ch[2]); // 外部变量直接访问
+        // printf("Yaw> RealS:%d RealB:%d | VirtualS:%d VirtualB:%d | RC:%d |\r\n",
+        //        now_SmallYaw_count,
+        //        now_BigYaw_count,
+        //        virtual_small,
+        //        virtual_big,
+        //        global_rc_control.rc.ch[2]); // 外部变量直接访问
         osDelay(100);
     }
-    /* USER CODE END StartDebugTask */
+  /* USER CODE END StartDebugTask */
 }
 
 /* USER CODE BEGIN Header_StartRemoteTask */
@@ -239,7 +252,7 @@ void StartDebugTask(void *argument)
 /* USER CODE END Header_StartRemoteTask */
 void StartRemoteTask(void *argument)
 {
-    /* USER CODE BEGIN StartRemoteTask */
+  /* USER CODE BEGIN StartRemoteTask */
     uint8_t raw_rc_data[18] = {0}; // 原始接收缓冲区
     RC_ctrl_t current_rc_data = {0};
     uint8_t num = 0;
@@ -257,7 +270,7 @@ void StartRemoteTask(void *argument)
             // 处理遥控器数据
             if (num > 20)
             {
-                RC_Data_Print(&current_rc_data);
+                // RC_Data_Print(&current_rc_data);
                 printf("Yaw: %.2f\n", Can_BMI088_Data.Yaw);
                 printf("Remote Control Data Received\n");
                 num = 0;
@@ -265,7 +278,7 @@ void StartRemoteTask(void *argument)
             num++;
         }
     }
-    /* USER CODE END StartRemoteTask */
+  /* USER CODE END StartRemoteTask */
 }
 
 /* USER CODE BEGIN Header_StartCanTask */
@@ -277,7 +290,7 @@ void StartRemoteTask(void *argument)
 /* USER CODE END Header_StartCanTask */
 void StartCanTask(void *argument)
 {
-    /* USER CODE BEGIN StartCanTask */
+  /* USER CODE BEGIN StartCanTask */
     osDelay(100);
     Gimbal_Control_Init();
     Gimbal_Shoot_Init();
@@ -295,7 +308,7 @@ void StartCanTask(void *argument)
         // Motor_6020_Voltage1((int16_t)BigYaw_SpeedPID.OUT, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
         osDelay(10);
     }
-    /* USER CODE END StartCanTask */
+  /* USER CODE END StartCanTask */
 }
 
 /* USER CODE BEGIN Header_StartTOTask */
@@ -307,7 +320,7 @@ void StartCanTask(void *argument)
 /* USER CODE END Header_StartTOTask */
 void StartTOTask(void *argument)
 {
-    /* USER CODE BEGIN StartTOTask */
+  /* USER CODE BEGIN StartTOTask */
     uint8_t raw_CtoC_data[8];
     BMI088_Init_typedef current_CtoC_data = {0};
     /* Infinite loop */
@@ -322,7 +335,25 @@ void StartTOTask(void *argument)
             memcpy(&Can_BMI088_Data, &current_CtoC_data, sizeof(BMI088_Init_typedef));
         }
     }
-    /* USER CODE END StartTOTask */
+  /* USER CODE END StartTOTask */
+}
+
+/* USER CODE BEGIN Header_StartCalTask */
+/**
+* @brief Function implementing the CalTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartCalTask */
+void StartCalTask(void *argument)
+{
+  /* USER CODE BEGIN StartCalTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartCalTask */
 }
 
 /* Private application code --------------------------------------------------*/
@@ -472,3 +503,4 @@ void RC_Data_Print(RC_ctrl_t *rc_data)
 }
 
 /* USER CODE END Application */
+
