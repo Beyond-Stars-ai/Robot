@@ -40,6 +40,7 @@
 #include "Gimbal_Shoot.h"
 #include "Gimbal_Trigger.h"
 
+#include "CalTask_Yaw.h"
 // #include "Gimbal_SmallYaw.h"
 // #include "Gimbal_Pitch.h"
 // #include "Gimbal_Yaw.h"
@@ -65,13 +66,12 @@ extern IWDG_HandleTypeDef hiwdg;
 
 //  中断缓冲变量
 uint8_t receiveData[18];
-// uint8_t CtoC_data[8];
 
 //  全局变量
 RC_ctrl_t global_rc_control; // 全局遥控器数据
 extern BMI088_Init_typedef Can_BMI088_Data;
 
-int16_t origin_BigYaw_count = 7744;
+int16_t origin_BigYaw_count = 4220;
 int16_t origin_SmallYaw_count = 2375;
 
 int16_t now_BigYaw_count = 0;
@@ -266,11 +266,12 @@ void StartRemoteTask(void *argument)
             memcpy(&global_rc_control, &current_rc_data, sizeof(RC_ctrl_t));
 
             // 处理遥控器数据
-            if (num > 20)
+            if (num > 10)
             {
                 // RC_Data_Print(&current_rc_data);
-                printf("Yaw: %.2f\n", Can_BMI088_Data.Yaw);
-                printf("Remote Control Data Received\n");
+
+                // 喂狗
+                HAL_IWDG_Refresh(&hiwdg);
                 num = 0;
             }
             num++;
@@ -358,10 +359,22 @@ void StartTOTask(void *argument)
 void StartCalTask(void *argument)
 {
     /* USER CODE BEGIN StartCalTask */
+    osDelay(20);
+    int n = 0;
     /* Infinite loop */
     for (;;)
     {
-        osDelay(1);
+        float yaw = Can_BMI088_Data.Yaw;
+        CalTask_Yaw_Update(yaw);
+        float delta = CalTask_Yaw_GetDelta();
+        n++;
+        if (n > 20)
+        {
+            printf("delta = %d\n", (int)(delta*100));
+            n = 0;
+        }
+
+        osDelay(20);
     }
     /* USER CODE END StartCalTask */
 }
@@ -387,8 +400,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         // 禁止半传送中断
         __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT);
 
-        // 喂狗
-        HAL_IWDG_Refresh(&hiwdg);
+        // // 喂狗
+        // HAL_IWDG_Refresh(&hiwdg);
     }
 }
 
