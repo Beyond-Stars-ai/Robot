@@ -3,108 +3,90 @@
 
 #include <stdint.h>
 
-//=========================== 配置参数 ===========================//
-
-// 采样周期：1ms（在CalTask中1ms调用一次）
-#define CALTASK_YAW_SAMPLE_MS       1
-
-// 差值计算间隔：20ms（保留20ms前的数据做差）
-#define CALTASK_YAW_INTERVAL_MS     20
-
-// 缓冲区大小（需要容纳21个数据点：当前 + 20ms前）
-#define CALTASK_YAW_BUFFER_SIZE     (CALTASK_YAW_INTERVAL_MS + 1)
-
 //=========================== 数据结构 ===========================//
 //
-// 类似BMI088_Init_typedef的设计风格
-// 输入：当前Yaw角度 + 时间戳
-// 输出：变化量 + 角速度 + 有效标志
+// CalTask专用：20ms周期计算Yaw变化量
+// 输入：当前Yaw角度
+// 输出：20ms间隔的变化量（后-前）
 //
 //===========================
 
-// 输入结构体（由调用者填充）
 typedef struct {
-    float yaw_now;          // 当前Yaw角度（度，-180~180）
-    uint32_t timestamp;     // 当前时间戳（ms，可选）
-} CalTask_YawInput_t;
-
-// 输出结构体（计算结果）
-typedef struct {
-    // 原始数据
-    float yaw_now;          // 当前Yaw值
-    float yaw_prev;         // 1ms前的Yaw值
-    float yaw_20ms_ago;     // 20ms前的Yaw值（内部使用）
-    
-    // 变化量输出（核心）
-    float delta_1ms;        // 1ms间隔变化量（后-前）
-    float delta_20ms;       // 20ms间隔变化量（后-前），这是主要输出
-    
-    // 派生值
-    float angular_velocity; // 角速度（度/秒）
-    
-    // 状态
-    uint8_t data_valid;     // 数据有效标志（1=已积累20ms数据）
-    uint32_t timestamp;     // 时间戳
-    uint32_t delta_time;    // 计算间隔（20ms）
-    
-} CalTask_YawOutput_t;
+    float yaw_now;              // 当前Yaw值（本次）
+    float yaw_prev;             // 上一次Yaw值（20ms前）
+    float delta_yaw;            // 变化量 = yaw_now - yaw_prev（处理±180°跨越）
+    float angular_velocity;     // 角速度（度/秒）
+    uint8_t data_valid;         // 数据有效标志（1=已计算过差值）
+} CalTask_YawData_t;
 
 //=========================== 接口函数 ===========================//
 
 /**
- * @brief 计算Yaw变化量（在1ms周期的CalTask中调用）
- * @param input 输入结构体指针（填充yaw_now和timestamp）
- * @return 输出结构体（包含变化量和状态）
+ * @brief 更新Yaw数据并计算变化量（在20ms周期的CalTask中调用）
+ * @param yaw_now 当前Yaw角度（度，-180~180）
+ * @return 更新后的数据结构
  * 
- * @note 使用方式：
- *       1. 在1ms周期任务中调用
- *       2. 填充input->yaw_now为当前Yaw角度
- *       3. 调用CalTask_Yaw_Calculate(&input)
- *       4. 通过获取接口或返回值读取delta_20ms
+ * @note 调用周期：20ms（与CalTask同步）
+ * @note 首次调用会记录初始值，不计算差值
  * 
  * @example
- *       CalTask_YawInput_t input = {0};
- *       input.yaw_now = g_imu_yaw;  // 当前IMU读数
- *       CalTask_Yaw_Calculate(&input);
- *       float delta = CalTask_Yaw_GetDelta20ms();  // 获取20ms变化量
+ *       void StartCalTask(void *argument)
+ *       {
+ *           for (;;)
+ *           {
+ *               // 读取IMU或编码器Yaw值
+ *               float yaw = Get_Yaw_Angle();
+ *               
+ *               // 计算变化量
+ *               CalTask_Yaw_Update(yaw);
+ *               
+ *               // 传递给Chassis_Follow（后续步骤）
+ *               // ChassisFollow_UpdateDelta(CalTask_Yaw_GetDelta());
+ *               
+ *               osDelay(20);
+ *           }
+ *       }
  */
-CalTask_YawOutput_t CalTask_Yaw_Calculate(CalTask_YawInput_t *input);
+CalTask_YawData_t CalTask_Yaw_Update(float yaw_now);
 
 /**
- * @brief 获取20ms间隔的变化量（后-前）
- * @return 20ms内的Yaw变化量（度）
- * 
- * @note 这是主要输出接口，供给Chassis_Follow使用
- *       正值表示顺时针转动，负值表示逆时针转动
+ * @brief 获取Yaw变化量（20ms间隔）
+ * @return 变化量（度），正值表示顺时针，负值表示逆时针
  */
-float CalTask_Yaw_GetDelta20ms(void);
+float CalTask_Yaw_GetDelta(void);
 
 /**
- * @brief 获取角速度（度/秒）
- * @return 当前估算的角速度
+ * @brief 获取角速度
+ * @return 角速度（度/秒）
  */
 float CalTask_Yaw_GetAngularVelocity(void);
 
 /**
- * @brief 获取1ms间隔的即时变化量
- * @return 1ms内的Yaw变化量（度）
+ * @brief 获取当前Yaw值
+ * @return 当前Yaw角度
  */
-float CalTask_Yaw_GetDelta1ms(void);
+float CalTask_Yaw_GetNow(void);
 
 /**
- * @brief 检查数据是否有效（已积累20ms数据）
- * @return 1=有效，0=无效（刚启动未满20ms）
+ * @brief 获取上一次Yaw值（20ms前）
+ * @return 上一次Yaw角度
  */
-uint8_t CalTask_Yaw_IsDataValid(void);
+float CalTask_Yaw_GetPrev(void);
 
 /**
- * @brief 获取完整的输出结构体
- * @return 输出结构体指针
+ * @brief 检查数据是否有效
+ * @return 1=有效（已计算过至少一次差值），0=无效（首次运行）
  */
-const CalTask_YawOutput_t* CalTask_Yaw_GetOutput(void);
+uint8_t CalTask_Yaw_IsValid(void);
 
 /**
- * @brief 重置模块（清零缓冲区）
+ * @brief 获取完整数据结构
+ * @return 数据结构指针
+ */
+const CalTask_YawData_t* CalTask_Yaw_GetData(void);
+
+/**
+ * @brief 重置模块
  */
 void CalTask_Yaw_Reset(void);
 
