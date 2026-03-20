@@ -30,7 +30,7 @@ void Message_Remote_to_rc(volatile const uint8_t *sbus_buf, RC_ctrl_t *rc_ctrl)
 }
 
 /**
- * @brief 哨兵机器人专用遥控器解析（帧头AA，固定长度14字节）同时ch上下界是-1024~1024，s是1~3
+ * @brief 哨兵机器人专用遥控器解析（帧头AA，固定长度14字节）同时ch上下界是-660~660，s是1~3
  * @param sbus_buf 接收缓冲区（volatile，与标准函数保持一致）
  * @param rc_ctrl 解析结果（填充 rc.ch[0~4] 和 rc.s[0~1]）
  * 

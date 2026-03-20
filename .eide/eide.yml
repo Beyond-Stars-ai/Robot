@@ -14,7 +14,7 @@ virtualFolder:
 dependenceList: []
 outDir: build
 miscInfo:
-  uid: a8ec1816877b13fbb42112297e3a5bf3
+  uid: a69e7a5c324e4438198c27c1fcb58b4a
 targets:
   Debug:
     cppPreprocessAttrs:
@@ -48,7 +48,9 @@ targets:
             ASM_FLAGS: -DDEBUG
           beforeBuildTasks: []
           c/cpp-compiler:
-            language-c: c23
+            CXX_FLAGS: ""
+            C_FLAGS: ""
+            language-c: c11
             language-cpp: c++11
             one-elf-section-per-data: true
             one-elf-section-per-function: true
@@ -56,14 +58,15 @@ targets:
             warnings: all-warnings
           global:
             $float-abi-type: hard
-            arm-thumb-mode: thumb
+            misc-control: []
             not-use-syscalls: true
             output-debug-info: enable
             use-newlib-nano: true
           linker:
             $outputTaskExcludes:
               - .bin
-            $toolName: auto
+            LD_FLAGS: ""
+            LIB_FLAGS: ""
             output-format: elf
             remove-unused-input-sections: true
         scatterFilePath: STM32F407IGHX_FLASH.ld
@@ -81,11 +84,6 @@ targets:
         otherCmds: ""
         proType: 1
         speed: 8000
-      OpenOCD:
-        baseAddr: "0x08000000"
-        bin: ""
-        interface: cmsis-dap
-        target: stm32f4x
       STLink:
         address: "0x08000000"
         bin: ""
@@ -96,15 +94,7 @@ targets:
         resetMode: default
         runAfterProgram: true
         speed: 4000
-      probe-rs:
-        allowEraseAll: false
-        baseAddr: "0x08000000"
-        bin: ""
-        otherOptions: ""
-        protocol: swd
-        speed: 0
-        target: STM32F407IG
-    uploader: probe-rs
+    uploader: STLink
   Release:
     cppPreprocessAttrs:
       defineList:
@@ -170,27 +160,4 @@ targets:
         otherCmds: ""
         proType: 1
         speed: 8000
-      OpenOCD:
-        baseAddr: "0x08000000"
-        bin: ""
-        interface: cmsis-dap
-        target: stm32f4x
-      STLink:
-        address: "0x08000000"
-        bin: ""
-        elFile: None
-        optionBytes: .eide/debug.st.option.bytes.ini
-        otherCmds: ""
-        proType: SWD
-        resetMode: default
-        runAfterProgram: true
-        speed: 4000
-      probe-rs:
-        allowEraseAll: false
-        baseAddr: "0x08000000"
-        bin: ""
-        otherOptions: ""
-        protocol: swd
-        speed: 0
-        target: STM32F407IG
-    uploader: probe-rs
+    uploader: JLink
