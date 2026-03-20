@@ -41,10 +41,15 @@ void CToC_AngleProcess(uint8_t *Data,BMI088_Init_typedef *data)
 	int16_t roll = (int16_t)((Data[4] << 8) | Data[5]);
 	int16_t tmp = (int16_t)((Data[6] << 8) | Data[7]);
 
-	data->Yaw = yaw / 100.0f;      // 转回 rad/s
-	data->Pitch = pitch / 100.0f;
-	data->Roll = roll / 100.0f;
-	data->Temp = tmp / 10.0f;         // 转回 °C
+	// data->Yaw = yaw / 100.0f;      // 转回 rad/s
+	// data->Pitch = pitch / 100.0f;
+	// data->Roll = roll / 100.0f;
+	// data->Temp = tmp / 10.0f;       
+
+    data->Yaw = yaw;      // 转回 rad/s
+	data->Pitch = pitch;
+	data->Roll = roll;
+	data->Temp = tmp / 10.0f;  
 
 }
 
