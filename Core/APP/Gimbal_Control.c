@@ -11,15 +11,6 @@ PID_PositionInitTypedef SmallYaw_SpeedPID;
 PID_PositionInitTypedef BigYaw_PositionPID;
 PID_PositionInitTypedef BigYaw_SpeedPID;
 
-//=========================== 工具函数 ===========================//
-
-static float limit_value(float value, float min, float max)
-{
-    if (value < min) return min;
-    if (value > max) return value;
-    return value;
-}
-
 //=========================== 初始化 ===========================//
 
 void Gimbal_Control_Init(void)

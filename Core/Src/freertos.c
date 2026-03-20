@@ -259,7 +259,7 @@ void StartRemoteTask(void *argument)
     /* Infinite loop */
     for (;;)
     {
-        if (osMessageQueueGet(rcDataQueueHandle, raw_rc_data, NULL, osWaitForever) == osOK)
+        if (osMessageQueueGet(rcDataQueueHandle, raw_rc_data, NULL, 100) == osOK)
         {
             // 解析原始数据到结构体
             Message_Remote_to_rc(raw_rc_data, &current_rc_data);
@@ -268,7 +268,7 @@ void StartRemoteTask(void *argument)
             memcpy(&global_rc_control, &current_rc_data, sizeof(RC_ctrl_t));
 
             // 处理遥控器数据
-            if (num > 10)
+            if (num > 20)
             {
                 // RC_Data_Print(&current_rc_data);
 
