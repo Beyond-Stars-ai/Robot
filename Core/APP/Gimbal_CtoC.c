@@ -28,10 +28,36 @@ static void CToC_MasterSendData(int16_t data1, int16_t data2,
     HAL_CAN_AddTxMessage(hcan, &Tx_Message, Can_Send_Data, &send_mail_box);
 }
 
+// static void CToC_MasterSendData_ADD(int16_t data1, int16_t data2,
+//                                 int16_t data3, int16_t data4,
+//                                 CAN_HandleTypeDef *hcan)
+// {
+//     CAN_TxHeaderTypeDef Tx_Message;
+//     uint8_t Can_Send_Data[8];
+//     uint32_t send_mail_box;
+
+//     Tx_Message.StdId = 0x189;
+//     Tx_Message.RTR = CAN_RTR_DATA; // 数据帧
+//     Tx_Message.IDE = CAN_ID_STD;   // 标准格式
+//     Tx_Message.DLC = 0x08;         // 8字节数据段
+//     Can_Send_Data[0] = data1 >> 8;
+//     Can_Send_Data[1] = data1;
+//     Can_Send_Data[2] = data2 >> 8;
+//     Can_Send_Data[3] = data2;
+//     Can_Send_Data[4] = data3 >> 8;
+//     Can_Send_Data[5] = data3;
+//     Can_Send_Data[6] = data4 >> 8;
+//     Can_Send_Data[7] = data4;
+
+//     HAL_CAN_AddTxMessage(hcan, &Tx_Message, Can_Send_Data, &send_mail_box);
+// }
+
 void Gimbal_CtoC_Remote(void)
 {
     CToC_MasterSendData(global_rc_control.rc.ch[0], global_rc_control.rc.ch[1],
                         global_rc_control.rc.ch[2], global_rc_control.rc.ch[3], &hcan2);
+
+    // CToC_MasterSendData_ADD(global_rc_control.rc.s[0], global_rc_control.rc.s[1], 0, 0, &hcan2);
 }
 
 void CToC_AngleProcess(uint8_t *Data,BMI088_Init_typedef *data)
@@ -41,15 +67,10 @@ void CToC_AngleProcess(uint8_t *Data,BMI088_Init_typedef *data)
 	int16_t roll = (int16_t)((Data[4] << 8) | Data[5]);
 	int16_t tmp = (int16_t)((Data[6] << 8) | Data[7]);
 
-	// data->Yaw = yaw / 100.0f;      // 转回 rad/s
-	// data->Pitch = pitch / 100.0f;
-	// data->Roll = roll / 100.0f;
-	// data->Temp = tmp / 10.0f;       
-
-    data->Yaw = yaw;      // 转回 rad/s
-	data->Pitch = pitch;
-	data->Roll = roll;
-	data->Temp = tmp / 10.0f;  
+	data->Yaw = yaw / 100.0f;      // 转回 rad/s
+	data->Pitch = pitch / 100.0f;
+	data->Roll = roll / 100.0f;
+	data->Temp = tmp / 10.0f;       
 
 }
 

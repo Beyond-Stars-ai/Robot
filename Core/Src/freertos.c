@@ -123,7 +123,7 @@ const osThreadAttr_t TOTask_attributes = {
 osThreadId_t CalTaskHandle;
 const osThreadAttr_t CalTask_attributes = {
   .name = "CalTask",
-  .stack_size = 128 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityBelowNormal6,
 };
 /* Definitions for rcDataQueue */
@@ -361,21 +361,27 @@ void StartTOTask(void *argument)
 void StartCalTask(void *argument)
 {
   /* USER CODE BEGIN StartCalTask */
-    osDelay(20);
+    osDelay(50);
     int n = 0;
+    // float min_yaw = 0;
+    // float max_yaw = 0;
     /* Infinite loop */
     for (;;)
     {
-        float yaw = Can_BMI088_Data.Yaw;
+        float yaw = Can_BMI088_Data.Yaw;  //yaw的范围是-180~180，且在±180°处会有跳变
+
+        // if(yaw < min_yaw) min_yaw = yaw;
+        // if(yaw > max_yaw) max_yaw = yaw;
+
         CalTask_Yaw_Update(yaw);
         float delta = CalTask_Yaw_GetDelta();
         n++;
         if (n > 20)
         {
-            printf("delta = %d\n", (int)(delta*10));
+            // printf("delta = %d, min_yaw = %d, max_yaw = %d\n", (int)(delta), (int)(min_yaw), (int)(max_yaw));
+            printf("delta = %d\n", (int)(delta));
             n = 0;
         }
-
         osDelay(20);
     }
   /* USER CODE END StartCalTask */
