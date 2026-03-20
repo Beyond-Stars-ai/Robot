@@ -41,6 +41,7 @@
 #include "Gimbal_Trigger.h"
 
 #include "CalTask_Yaw.h"
+#include "Chassis_Follow.h"
 // #include "Gimbal_SmallYaw.h"
 // #include "Gimbal_Pitch.h"
 // #include "Gimbal_Yaw.h"
@@ -362,6 +363,10 @@ void StartCalTask(void *argument)
 {
   /* USER CODE BEGIN StartCalTask */
     osDelay(50);
+
+    // 初始化底盘跟随模块
+    Chassis_Follow_Init(origin_BigYaw_count);
+
     int n = 0;
     // float min_yaw = 0;
     // float max_yaw = 0;
@@ -374,7 +379,11 @@ void StartCalTask(void *argument)
         // if(yaw > max_yaw) max_yaw = yaw;
 
         CalTask_Yaw_Update(yaw);
+        
         float delta = CalTask_Yaw_GetDelta();
+
+        // 更新底盘跟随（积分delta，输出补偿值）
+        Chassis_Follow_Update(delta);
         n++;
         if (n > 20)
         {

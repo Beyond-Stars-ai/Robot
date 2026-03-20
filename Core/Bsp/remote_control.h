@@ -61,5 +61,6 @@ typedef struct
 } RC_ctrl_t;
 
 void Message_Remote_to_rc(volatile const uint8_t *sbus_buf, RC_ctrl_t *rc_ctrl);
+void Message_Remote_to_rc_guard(volatile const uint8_t *sbus_buf, RC_ctrl_t *rc_ctrl);
 
 #endif
