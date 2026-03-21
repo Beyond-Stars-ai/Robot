@@ -55,6 +55,7 @@ extern CAN_HandleTypeDef hcan1;
 extern CAN_HandleTypeDef hcan2;
 extern DMA_HandleTypeDef hdma_usart1_tx;
 extern DMA_HandleTypeDef hdma_usart3_rx;
+extern DMA_HandleTypeDef hdma_usart6_rx;
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart3;
 extern UART_HandleTypeDef huart6;
@@ -67,6 +68,7 @@ extern IWDG_HandleTypeDef hiwdg;
 
 //  中断缓冲变量
 uint8_t receiveData[18];
+uint8_t receiveData_guard[14];
 
 //  全局变量
 RC_ctrl_t global_rc_control; // 全局遥控器数据
@@ -142,6 +144,11 @@ osMessageQueueId_t CtoCQueueHandle;
 const osMessageQueueAttr_t CtoCQueue_attributes = {
   .name = "CtoCQueue"
 };
+/* Definitions for guardQueue */
+osMessageQueueId_t guardQueueHandle;
+const osMessageQueueAttr_t guardQueue_attributes = {
+  .name = "guardQueue"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -167,7 +174,10 @@ void MX_FREERTOS_Init(void) {
 
     // 清除接收缓冲区并开始接收
     memset(receiveData, 0, sizeof(receiveData));
+    memset(receiveData_guard, 0, sizeof(receiveData_guard));
+
     HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart6, receiveData_guard, sizeof(receiveData_guard));
 
   /* USER CODE END Init */
 
@@ -189,6 +199,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of CtoCQueue */
   CtoCQueueHandle = osMessageQueueNew (1, 8, &CtoCQueue_attributes);
+
+  /* creation of guardQueue */
+  guardQueueHandle = osMessageQueueNew (1, 14, &guardQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
@@ -260,6 +273,7 @@ void StartRemoteTask(void *argument)
 {
   /* USER CODE BEGIN StartRemoteTask */
     uint8_t raw_rc_data[18] = {0}; // 原始接收缓冲区
+    uint8_t raw_guard_data[14] = {0}; // 原始接收缓冲区
     RC_ctrl_t current_rc_data = {0};
     uint8_t num = 0;
     /* Infinite loop */
@@ -284,6 +298,25 @@ void StartRemoteTask(void *argument)
             }
             num++;
         }
+        else if (osMessageQueueGet(guardQueueHandle, raw_guard_data, NULL, 100) == osOK)
+        {
+            // 解析原始数据到结构体
+            Message_Remote_to_rc_guard(raw_guard_data, &current_rc_data);
+
+            // 更新全局变量（供其他任务使用）
+            memcpy(&global_rc_control, &current_rc_data, sizeof(RC_ctrl_t));
+
+            // 处理遥控器数据
+            if (num > 20)
+            {
+                // RC_Data_Print(&current_rc_data);
+
+                // 喂狗
+                HAL_IWDG_Refresh(&hiwdg);
+                num = 0;
+            }
+            num++;
+        }
     }
   /* USER CODE END StartRemoteTask */
 }
@@ -293,6 +326,8 @@ void StartRemoteTask(void *argument)
  * @brief Function implementing the CanTask thread.
  * @param argument: Not used
  * @retval None
+ * 
+ * @note 1ms控制周期 (1000Hz)
  */
 /* USER CODE END Header_StartCanTask */
 void StartCanTask(void *argument)
@@ -302,18 +337,15 @@ void StartCanTask(void *argument)
     Gimbal_Control_Init();
     Gimbal_Shoot_Init();
     Gimbal_Trigger_Init();
-    /* Infinite loop */
+    /* Infinite loop - 1ms控制周期 */
     for (;;)
     {
-        Gimbal_CtoC_Remote(); // 说出了谁的心声，周瑞
+        Gimbal_CtoC_Remote(); 
         Gimbal_Trigger_Control();
         Gimbal_Shoot_Control();
         Gimbal_Control_Loop();
-        // Gimbal_SmallYaw_Control();
-        // HAL_IWDG_Refresh(&hiwdg);
-        // Gimbal_Pitch_Control();
-        // Motor_6020_Voltage1((int16_t)BigYaw_SpeedPID.OUT, (int16_t)SmallYaw_SpeedPID.OUT, 0, 0, &hcan2);
-        osDelay(10);
+        
+        osDelay(1);  // 1ms = 1000Hz
     }
   /* USER CODE END StartCanTask */
 }
@@ -363,9 +395,8 @@ void StartTOTask(void *argument)
  * @param argument: Not used
  * @retval None
  * 
- * @note 哨兵专用：计算底盘转动变化量（10ms周期，与CanTask同步）
- *       计算公式：g_chassis_delta = -delta_yaw * 22.756f
- *       负号表示：底盘右转(Yaw增加)时，云台需左补偿
+ * @note 哨兵专用：1ms插值，BMI088 100Hz -> 1000Hz
+ *       10ms读一次IMU，中间9ms线性插值
  */
 /* USER CODE END Header_StartCalTask */
 void StartCalTask(void *argument)
@@ -373,31 +404,74 @@ void StartCalTask(void *argument)
   /* USER CODE BEGIN StartCalTask */
     osDelay(50);
 
+    // 插值状态
+    static float last_yaw = 0;
+    static float target_yaw = 0;
+    static float velocity = 0;
+    static float current_interp_yaw = 0;
+    static int interp_count = 0;
+    static uint8_t first_run = 1;
+    
     int n = 0;
+    const float ENCODER_SCALE = 22.756f;
+    
     /* Infinite loop */
     for (;;)
     {
-        float yaw = Can_BMI088_Data.Yaw;
-
-        // 计算Yaw变化量
-        CalTask_Yaw_Update(yaw);
-        float delta_yaw = CalTask_Yaw_GetDelta();  // 度/10ms
-        
-        // 转换为编码器变化量（当前帧的变化量，不是累积！）
-        const float ENCODER_SCALE = 22.756f;
-        g_chassis_delta = -delta_yaw * ENCODER_SCALE;
-        
-        // 调试输出（预览虚拟RC值 = -delta * gain）
-        n++;
-        if (n > 20)
+        // 每10ms(10次循环)读一次IMU
+        if (interp_count == 0)
         {
-            printf("delta_yaw = %d, delta_enc = %d, virtual_rc = %d\n", 
-                   (int)(delta_yaw), 
-                   (int)(g_chassis_delta),
-                   (int)(-g_chassis_delta * 3.0f));
+            float yaw = Can_BMI088_Data.Yaw;
+            CalTask_Yaw_Update(yaw);
+            float delta_yaw = CalTask_Yaw_GetDelta();
+            
+            if (first_run) {
+                last_yaw = yaw;
+                target_yaw = yaw;
+                current_interp_yaw = yaw;
+                first_run = 0;
+            } else {
+                last_yaw = current_interp_yaw;  // 从当前插值位置继续
+                target_yaw = yaw;
+                // 计算速度（度/秒）
+                velocity = delta_yaw / 0.01f;  // 10ms = 0.01s
+            }
+        }
+        
+        // 线性插值: yaw = last_yaw + velocity * t
+        // t = interp_count * 0.001f (0~0.009s)
+        float t = interp_count * 0.001f;
+        float interp_yaw = last_yaw + velocity * t;
+        
+        // 计算delta（相对于上一帧）
+        static float last_out_yaw = 0;
+        if (first_run == 0) {
+            float delta_yaw = interp_yaw - last_out_yaw;
+            // 处理环绕
+            if (delta_yaw > 180.0f) delta_yaw -= 360.0f;
+            if (delta_yaw < -180.0f) delta_yaw += 360.0f;
+            
+            // 转换为编码器值（1ms的delta）
+            g_chassis_delta = -delta_yaw * ENCODER_SCALE;
+            last_out_yaw = interp_yaw;
+        }
+        current_interp_yaw = interp_yaw;
+        
+        // 计数器
+        interp_count++;
+        if (interp_count >= 10) {
+            interp_count = 0;
+        }
+        
+        // 调试输出
+        n++;
+        if (n > 100)  // 100ms输出一次
+        {
+            printf("vel=%d delta=%d\n", (int)(velocity), (int)(g_chassis_delta));
             n = 0;
         }
-        osDelay(10);  // 10ms周期，与CanTask同步
+        
+        osDelay(1);  // 1ms周期
     }
   /* USER CODE END StartCalTask */
 }
@@ -423,6 +497,25 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         // 禁止半传送中断
         __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT);
     }
+
+    else if (huart->Instance == USART6)
+    {
+        // 通过队列发送原始数据（在中断中不做解析）
+        if (guardQueueHandle != NULL)
+        {
+            // osMessageQueuePut(rcDataQueueHandle, receiveData, 0, 0);
+            osMessageQueuePut(guardQueueHandle, receiveData_guard, 0, 0);
+        }
+
+        // 清除IDLE中断标志
+        __HAL_UART_CLEAR_IDLEFLAG(huart);
+
+        // 重新启动DMA接收
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart6, receiveData_guard, sizeof(receiveData_guard));
+
+        // 禁止半传送中断
+        __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
+    }
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
@@ -439,6 +532,20 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
         memset(receiveData, 0, sizeof(receiveData));
         HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
         __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT);
+    }
+
+    else if (huart->Instance == USART6)
+    {
+        // 打印错误信息
+        printf("UART Error: 0x%02lX\n", huart->ErrorCode);
+
+        // 清除错误标志
+        __HAL_UART_CLEAR_FLAG(huart, UART_FLAG_PE | UART_FLAG_FE | UART_FLAG_NE | UART_FLAG_ORE);
+
+        // 重新初始化UART接收
+        memset(receiveData_guard, 0, sizeof(receiveData_guard));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart6, receiveData_guard, sizeof(receiveData_guard));
+        __HAL_DMA_DISABLE_IT(&hdma_usart6_rx, DMA_IT_HT);
     }
 }
 
@@ -525,7 +632,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 int _write(int fd, char *ptr, int len)
 {
-    HAL_UART_Transmit(&huart6, (uint8_t *)ptr, len, HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
     return len;
 }
 

@@ -14,12 +14,9 @@ PID_PositionInitTypedef BigYaw_SpeedPID;
 //=========================== 全局变量 ===========================//
 
 /**
- * @brief 底盘转动变化量（编码器值/10ms）
+ * @brief 底盘转动变化量（编码器值/1ms）
  * 
- * CalTask每10ms更新：
- *   g_chassis_delta = -delta_yaw * 22.756f
- * 
- * @note 与CanTask同步（10ms周期），直接读取使用
+ * CalTask每1ms更新（插值后）
  */
 float g_chassis_delta = 0.0f;
 
@@ -29,37 +26,40 @@ void Gimbal_Control_Init(void)
 {
     Virtual_Yaw_Init();
 
-    // Pitch
+    // Pitch - 位置环
     PID_PositionStructureInit(&Pitch_PositionPID, 4074.0f);
     PID_PositionSetParameter(&Pitch_PositionPID, 0.5f, 0.0f, 0.0f);
     PID_PositionSetOUTRange(&Pitch_PositionPID, -400.0f, 400.0f);
     PID_PositionSetEkRange(&Pitch_PositionPID, -3.0f, 3.0f);
 
+    // Pitch - 速度环（1ms适配：降低Kp到25）
     PID_PositionStructureInit(&Pitch_SpeedPID, 0.0f);
-    PID_PositionSetParameter(&Pitch_SpeedPID, 50.0f, 0.0f, 0.0f);
+    PID_PositionSetParameter(&Pitch_SpeedPID, 25.0f, 0.0f, 0.0f);  // 原来是50
     PID_PositionSetOUTRange(&Pitch_SpeedPID, -20000.0f, 20000.0f);
     PID_PositionSetEkRange(&Pitch_SpeedPID, -3.0f, 3.0f);
 
-    // SmallYaw
+    // SmallYaw - 位置环
     PID_PositionStructureInit(&SmallYaw_PositionPID, 0.0f);
     PID_PositionSetParameter(&SmallYaw_PositionPID, 0.5f, 0.0f, 0.0f);
     PID_PositionSetOUTRange(&SmallYaw_PositionPID, -4000.0f, 4000.0f);
     PID_PositionSetEkRange(&SmallYaw_PositionPID, -5.0f, 5.0f);
 
+    // SmallYaw - 速度环（1ms适配：降低Kp到10）
     PID_PositionStructureInit(&SmallYaw_SpeedPID, 0.0f);
-    PID_PositionSetParameter(&SmallYaw_SpeedPID, 20.0f, 0.0f, 0.0f);
+    PID_PositionSetParameter(&SmallYaw_SpeedPID, 10.0f, 0.0f, 0.0f);  // 原来是20
     PID_PositionSetOUTRange(&SmallYaw_SpeedPID, -10000.0f, 10000.0f);
     PID_PositionSetEkRange(&SmallYaw_SpeedPID, -3.0f, 3.0f);
 
-    // BigYaw（保守参数，因为虚拟RC已经提供了前馈）
+    // BigYaw - 位置环（可以适当加大，响应更快）
     PID_PositionStructureInit(&BigYaw_PositionPID, 0.0f);
-    PID_PositionSetParameter(&BigYaw_PositionPID, 0.8f, 0.0f, 0.0f);
-    PID_PositionSetOUTRange(&BigYaw_PositionPID, -6000.0f, 6000.0f);
+    PID_PositionSetParameter(&BigYaw_PositionPID, 1.0f, 0.0f, 0.0f);  // 原来是0.8
+    PID_PositionSetOUTRange(&BigYaw_PositionPID, -8000.0f, 8000.0f);
     PID_PositionSetEkRange(&BigYaw_PositionPID, -5.0f, 5.0f);
 
+    // BigYaw - 速度环（1ms适配：降低Kp到15）
     PID_PositionStructureInit(&BigYaw_SpeedPID, 0.0f);
-    PID_PositionSetParameter(&BigYaw_SpeedPID, 30.0f, 0.0f, 0.0f);
-    PID_PositionSetOUTRange(&BigYaw_SpeedPID, -20000.0f, 20000.0f);
+    PID_PositionSetParameter(&BigYaw_SpeedPID, 15.0f, 0.0f, 0.0f);  // 原来是30
+    PID_PositionSetOUTRange(&BigYaw_SpeedPID, -25000.0f, 25000.0f);
     PID_PositionSetEkRange(&BigYaw_SpeedPID, -3.0f, 3.0f);
 }
 
@@ -82,7 +82,7 @@ void Gimbal_Pitch_Control(void)
     Motor_6020_Voltage1(0, (int16_t)Pitch_SpeedPID.OUT, 0, 0, &hcan1);
 }
 
-//=========================== Yaw控制 ===========================//
+//=========================== Yaw控制（1ms）===========================//
 
 void Gimbal_Yaw_Control(void)
 {
@@ -92,7 +92,7 @@ void Gimbal_Yaw_Control(void)
     float real_small_speed = (float)Can2_M6020_MotorStatus[1].Speed;
     float real_big_speed = (float)Can2_M6020_MotorStatus[0].Speed;
     
-    // 统一更新（10ms同步，直接读取底盘delta）
+    // 1ms更新（直接使用g_chassis_delta，CalTask每1ms插值更新）
     Virtual_Yaw_Update(global_rc_control.rc.ch[2], 
                        g_chassis_delta,
                        real_small, 
