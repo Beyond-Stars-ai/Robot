@@ -5,11 +5,13 @@
 //=========================== 内部变量 ===========================//
 
 static Virtual_Yaw_State_t g_state = {0};
+static float g_chassis_gain = CHASSIS_FOLLOW_GAIN;
 
 // 调试用
 int16_t virtual_big;
 int16_t virtual_small;
 float virtual_coord_debug;
+int16_t rc_chassis_debug;
 
 //=========================== 工具函数 ===========================//
 
@@ -45,9 +47,9 @@ void Virtual_Yaw_Init(void)
     g_state.origin_big = origin_BigYaw_count;
     g_state.origin_small = origin_SmallYaw_count;
     
-    g_state.rc_input = 0;
-    g_state.chassis_virtual_rc = 0;
-    g_state.total_rc_input = 0;
+    g_state.rc_real = 0;
+    g_state.rc_chassis = 0;
+    g_state.rc_total = 0;
     
     g_state.virtual_coord = 0.0f;
     g_state.small_part = 0.0f;
@@ -62,53 +64,40 @@ void Virtual_Yaw_Init(void)
     g_state.error_small = 0.0f;
     g_state.error_big = 0.0f;
     
-    g_state.last_chassis_compensation = 0.0f;
+    g_chassis_gain = CHASSIS_FOLLOW_GAIN;
 }
 
 //=========================== 核心更新函数 ===========================//
 
-void Virtual_Yaw_Update(int16_t rc_value, float chassis_compensation,
+void Virtual_Yaw_Update(int16_t rc_value, float chassis_delta,
                         float real_small, float real_big)
 {
     //---------- 1. 记录实际编码 ----------
     g_state.real_small = real_small;
     g_state.real_big = real_big;
-    g_state.rc_input = rc_value;
+    g_state.rc_real = rc_value;
     
-    //---------- 2. 【核心改进】底盘补偿 → 虚拟RC值 ----------
-    // 计算需要的补偿速度（编码器值/控制周期）
-    // 10ms控制周期，要抵消 chassis_compensation，需要多少RC值？
+    //---------- 2. 【核心】底盘delta -> 虚拟RC值 ----------
+    // 简单直接：底盘右转（delta为正），虚拟RC为负（左补偿）
+    // virtual_rc = -chassis_delta * gain
+    // 
+    // 例如：chassis_delta = 30（底盘右转30编码器值/20ms）
+    //       virtual_rc = -30 * 3 = -90
+    //       相当于遥控器向左打90，云台跟着左转
     
-    // 方法：计算底盘补偿的变化率，转换为等效RC值
-    float comp_delta = chassis_compensation - g_state.last_chassis_compensation;
+    float virtual_rc_f = -chassis_delta * g_chassis_gain;
     
-    // 处理环绕（比如从10变到8182，实际只变了-20）
-    if (comp_delta > ENCODER_HALF) comp_delta -= ENCODER_MAX;
-    if (comp_delta < -ENCODER_HALF) comp_delta += ENCODER_MAX;
+    // 限幅保护（避免电机暴走）
+    virtual_rc_f = limit_value(virtual_rc_f, -500.0f, 500.0f);
+    g_state.rc_chassis = (int16_t)virtual_rc_f;
     
-    // 将编码器变化量转换为RC值
-    // RC值 * VIRTUAL_RC_SENS = 编码器变化量
-    // 所以：RC值 = 编码器变化量 / VIRTUAL_RC_SENS
-    if (fabsf(comp_delta) > 1.0f) {
-        // 有底盘转动，计算需要的虚拟RC值
-        // 注意：这里是负号！底盘右转（comp_delta为正），需要左补偿（RC为负）
-        float virtual_rc = -comp_delta / VIRTUAL_RC_SENS;
-        
-        // 限幅保护（避免电机暴走）
-        g_state.chassis_virtual_rc = (int16_t)limit_value(virtual_rc, -660.0f, 660.0f);
-    } else {
-        g_state.chassis_virtual_rc = 0;
-    }
-    
-    g_state.last_chassis_compensation = chassis_compensation;
-    
-    //---------- 3. 混合输入（真实RC + 虚拟RC）----------
-    g_state.total_rc_input = g_state.rc_input + g_state.chassis_virtual_rc;
+    //---------- 3. 混合输入 ----------
+    g_state.rc_total = g_state.rc_real + g_state.rc_chassis;
     
     //---------- 4. 【保持不变】神龙摆尾算法 ----------
     float delta = 0.0f;
-    if (abs(g_state.total_rc_input) >= (int16_t)VIRTUAL_RC_DEADZONE) {
-        delta = VIRTUAL_RC_SENS * (float)g_state.total_rc_input;
+    if (abs(g_state.rc_total) >= (int16_t)VIRTUAL_RC_DEADZONE) {
+        delta = VIRTUAL_RC_SENS * (float)g_state.rc_total;
     }
     
     // 累加到虚拟坐标
@@ -126,13 +115,13 @@ void Virtual_Yaw_Update(int16_t rc_value, float chassis_compensation,
     float desired_vel = (K_P * error) + 
                         (K_Q * error * error * (error > 0 ? 1.0f : -1.0f));
     
-    // 速度平滑（保留摆尾效果）
+    // 速度平滑
     g_state.big_yaw_vel += (desired_vel - g_state.big_yaw_vel) * SMOOTH_COEFF;
     
-    // SmallYaw减去速度，BigYaw承担
+    // SmallYaw减去速度
     g_state.small_part -= g_state.big_yaw_vel;
     
-    // SmallYaw限位保护
+    // SmallYaw限位
     g_state.small_part = limit_value(g_state.small_part, 
                                      -SMALL_YAW_LIMIT, SMALL_YAW_LIMIT);
     
@@ -150,10 +139,11 @@ void Virtual_Yaw_Update(int16_t rc_value, float chassis_compensation,
     g_state.error_small = encoder_delta(g_state.target_small, real_small);
     g_state.error_big = encoder_delta(g_state.target_big, real_big);
     
-    //---------- 8. 更新调试变量 ----------
+    //---------- 8. 调试变量 ----------
     virtual_small = (int16_t)g_state.target_small;
     virtual_big = (int16_t)g_state.target_big;
     virtual_coord_debug = g_state.virtual_coord;
+    rc_chassis_debug = g_state.rc_chassis;
 }
 
 //=========================== 输出接口 ===========================//
@@ -188,10 +178,14 @@ void Virtual_Yaw_Reset(void)
     g_state.virtual_coord = 0.0f;
     g_state.small_part = 0.0f;
     g_state.big_yaw_vel = 0.0f;
-    g_state.chassis_virtual_rc = 0;
-    g_state.total_rc_input = 0;
-    g_state.last_chassis_compensation = 0.0f;
+    g_state.rc_chassis = 0;
+    g_state.rc_total = 0;
     
     g_state.target_small = (float)g_state.origin_small;
     g_state.target_big = (float)g_state.origin_big;
+}
+
+void Virtual_Yaw_SetChassisGain(float gain)
+{
+    g_chassis_gain = gain;
 }

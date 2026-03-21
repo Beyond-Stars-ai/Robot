@@ -14,15 +14,15 @@ PID_PositionInitTypedef BigYaw_SpeedPID;
 //=========================== 全局变量 ===========================//
 
 /**
- * @brief 底盘补偿累积值（编码器值单位）
+ * @brief 底盘转动变化量（编码器值/20ms）
  * 
- * 由CalTask每20ms更新：
- *   g_chassis_compensation += (-delta_yaw * 22.756f)
+ * CalTask每20ms更新：
+ *   g_chassis_delta = -delta_yaw * 22.756f
  * 
- * 这是一个累积值，表示底盘相对于开机时转动了多少编码器单位。
- * Virtual_Yaw_Update 会计算其变化率，转换为虚拟RC值。
+ * @note 使用消费式读取：CanTask读取后清零，确保每个delta只用一次
  */
-float g_chassis_compensation = 0.0f;
+float g_chassis_delta = 0.0f;
+uint8_t g_chassis_delta_ready = 0;
 
 //=========================== 初始化 ===========================//
 
@@ -30,7 +30,7 @@ void Gimbal_Control_Init(void)
 {
     Virtual_Yaw_Init();
 
-    // Pitch初始化
+    // Pitch
     PID_PositionStructureInit(&Pitch_PositionPID, 4074.0f);
     PID_PositionSetParameter(&Pitch_PositionPID, 0.5f, 0.0f, 0.0f);
     PID_PositionSetOUTRange(&Pitch_PositionPID, -400.0f, 400.0f);
@@ -41,7 +41,7 @@ void Gimbal_Control_Init(void)
     PID_PositionSetOUTRange(&Pitch_SpeedPID, -20000.0f, 20000.0f);
     PID_PositionSetEkRange(&Pitch_SpeedPID, -3.0f, 3.0f);
 
-    // SmallYaw初始化
+    // SmallYaw
     PID_PositionStructureInit(&SmallYaw_PositionPID, 0.0f);
     PID_PositionSetParameter(&SmallYaw_PositionPID, 0.5f, 0.0f, 0.0f);
     PID_PositionSetOUTRange(&SmallYaw_PositionPID, -4000.0f, 4000.0f);
@@ -52,7 +52,7 @@ void Gimbal_Control_Init(void)
     PID_PositionSetOUTRange(&SmallYaw_SpeedPID, -10000.0f, 10000.0f);
     PID_PositionSetEkRange(&SmallYaw_SpeedPID, -3.0f, 3.0f);
 
-    // BigYaw初始化（调保守一点，因为现在有虚拟RC前馈）
+    // BigYaw（保守参数，因为虚拟RC已经提供了前馈）
     PID_PositionStructureInit(&BigYaw_PositionPID, 0.0f);
     PID_PositionSetParameter(&BigYaw_PositionPID, 0.8f, 0.0f, 0.0f);
     PID_PositionSetOUTRange(&BigYaw_PositionPID, -6000.0f, 6000.0f);
@@ -83,7 +83,7 @@ void Gimbal_Pitch_Control(void)
     Motor_6020_Voltage1(0, (int16_t)Pitch_SpeedPID.OUT, 0, 0, &hcan1);
 }
 
-//=========================== Yaw控制（保留神龙摆尾）===========================//
+//=========================== Yaw控制 ===========================//
 
 void Gimbal_Yaw_Control(void)
 {
@@ -93,9 +93,17 @@ void Gimbal_Yaw_Control(void)
     float real_small_speed = (float)Can2_M6020_MotorStatus[1].Speed;
     float real_big_speed = (float)Can2_M6020_MotorStatus[0].Speed;
     
-    // 统一更新（底盘补偿作为累积值传入）
+    // 消费式读取：有新数据就用，用完清零避免重复计算
+    float chassis_delta = 0.0f;
+    if (g_chassis_delta_ready) {
+        chassis_delta = g_chassis_delta;
+        g_chassis_delta = 0.0f;        // 清零，确保20ms内只用一次
+        g_chassis_delta_ready = 0;
+    }
+    
+    // 统一更新（底盘delta传入，10ms内可能为0）
     Virtual_Yaw_Update(global_rc_control.rc.ch[2], 
-                       g_chassis_compensation,
+                       chassis_delta,
                        real_small, 
                        real_big);
     

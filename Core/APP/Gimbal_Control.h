@@ -16,15 +16,15 @@ extern M6020_Motor Can2_M6020_MotorStatus[7];
 //=========================== 全局变量 ===========================//
 
 /**
- * @brief 底盘补偿累积值（编码器值单位）
+ * @brief 底盘转动变化量（编码器值/20ms）
  * 
  * CalTask每20ms更新：
- *   g_chassis_compensation += (-delta_yaw * 22.756f)
+ *   g_chassis_delta = -delta_yaw * 22.756f
  * 
- * 表示底盘相对于开机时转动了多少编码器单位。
- * Virtual_Yaw_Update会计算其变化率，转换为虚拟RC值。
+ * @note 使用消费式读取：CanTask读取后清零，确保每个delta只用一次
  */
-extern float g_chassis_compensation;
+extern float g_chassis_delta;
+extern uint8_t g_chassis_delta_ready;
 
 //=========================== PID变量 ===========================//
 

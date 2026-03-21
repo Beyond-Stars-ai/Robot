@@ -81,9 +81,11 @@ int16_t now_SmallYaw_count = 0;
 extern int16_t virtual_big;
 extern int16_t virtual_small;
 extern float virtual_coord_debug;
+extern int16_t rc_chassis_debug;
 
-// 底盘补偿累积值（定义在Gimbal_Control.c）
-extern float g_chassis_compensation;
+// 底盘变化量（定义在Gimbal_Control.c）
+extern float g_chassis_delta;
+extern uint8_t g_chassis_delta_ready;
 
 /* USER CODE END PD */
 
@@ -382,21 +384,21 @@ void StartCalTask(void *argument)
         CalTask_Yaw_Update(yaw);
         float delta_yaw = CalTask_Yaw_GetDelta();  // 度/20ms
         
-        // 转换为编码器值并累积
-        // 注意：这里是累积，不是赋值！
+        // 转换为编码器变化量（当前帧的变化量，不是累积！）
         const float ENCODER_SCALE = 22.756f;
-        g_chassis_compensation += (-delta_yaw * ENCODER_SCALE);
+        g_chassis_delta = -delta_yaw * ENCODER_SCALE;
         
-        // 归一化到[0, 8192)，避免数值溢出
-        while (g_chassis_compensation >= 8192.0f) g_chassis_compensation -= 8192.0f;
-        while (g_chassis_compensation < 0) g_chassis_compensation += 8192.0f;
+        // 标记新数据可用
+        g_chassis_delta_ready = 1;
         
-        // 调试输出
+        // 调试输出（预览虚拟RC值 = -delta * gain）
         n++;
         if (n > 20)
         {
-            printf("delta_yaw = %d, compensation = %d\n", 
-                   (int)(delta_yaw), (int)(g_chassis_compensation));
+            printf("delta_yaw = %d, delta_enc = %d, virtual_rc = %d\n", 
+                   (int)(delta_yaw), 
+                   (int)(g_chassis_delta),
+                   (int)(-g_chassis_delta * 3.0f));
             n = 0;
         }
         osDelay(20);

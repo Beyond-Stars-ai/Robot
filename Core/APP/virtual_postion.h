@@ -23,8 +23,8 @@ extern int16_t origin_SmallYaw_count;
 #define SMALL_YAW_LIMIT             3276.8f
 
 // 底盘跟随增益：chassis_delta -> 虚拟RC值的倍数
-// 底盘转30编码器值，虚拟RC = -30 * 3 = -90
-#define CHASSIS_FOLLOW_GAIN         3.0f
+// 底盘转30编码器值，虚拟RC = -30 * 6 = -180
+#define CHASSIS_FOLLOW_GAIN         6.0f
 
 //=========================== 数据结构 ===========================//
 
