@@ -14,15 +14,14 @@ PID_PositionInitTypedef BigYaw_SpeedPID;
 //=========================== 全局变量 ===========================//
 
 /**
- * @brief 底盘转动变化量（编码器值/20ms）
+ * @brief 底盘转动变化量（编码器值/10ms）
  * 
- * CalTask每20ms更新：
+ * CalTask每10ms更新：
  *   g_chassis_delta = -delta_yaw * 22.756f
  * 
- * @note 使用消费式读取：CanTask读取后清零，确保每个delta只用一次
+ * @note 与CanTask同步（10ms周期），直接读取使用
  */
 float g_chassis_delta = 0.0f;
-uint8_t g_chassis_delta_ready = 0;
 
 //=========================== 初始化 ===========================//
 
@@ -93,17 +92,9 @@ void Gimbal_Yaw_Control(void)
     float real_small_speed = (float)Can2_M6020_MotorStatus[1].Speed;
     float real_big_speed = (float)Can2_M6020_MotorStatus[0].Speed;
     
-    // 消费式读取：有新数据就用，用完清零避免重复计算
-    float chassis_delta = 0.0f;
-    if (g_chassis_delta_ready) {
-        chassis_delta = g_chassis_delta;
-        g_chassis_delta = 0.0f;        // 清零，确保20ms内只用一次
-        g_chassis_delta_ready = 0;
-    }
-    
-    // 统一更新（底盘delta传入，10ms内可能为0）
+    // 统一更新（10ms同步，直接读取底盘delta）
     Virtual_Yaw_Update(global_rc_control.rc.ch[2], 
-                       chassis_delta,
+                       g_chassis_delta,
                        real_small, 
                        real_big);
     

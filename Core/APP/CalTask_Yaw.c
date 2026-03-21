@@ -46,8 +46,8 @@ CalTask_YawData_t CalTask_Yaw_Update(float yaw_now)
     s_yaw_data.delta_yaw = angle_diff(s_yaw_data.yaw_now, s_yaw_data.yaw_prev);
     
     //---------- 3. 计算角速度（度/秒）----------
-    // 20ms = 0.02s，乘以50 = 每秒变化
-    s_yaw_data.angular_velocity = s_yaw_data.delta_yaw * 50.0f;
+    // 10ms = 0.01s，乘以100 = 每秒变化
+    s_yaw_data.angular_velocity = s_yaw_data.delta_yaw * 100.0f;
     
     //---------- 4. 标记数据有效 ----------
     s_yaw_data.data_valid = 1;

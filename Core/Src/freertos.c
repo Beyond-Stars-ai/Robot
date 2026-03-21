@@ -85,7 +85,6 @@ extern int16_t rc_chassis_debug;
 
 // 底盘变化量（定义在Gimbal_Control.c）
 extern float g_chassis_delta;
-extern uint8_t g_chassis_delta_ready;
 
 /* USER CODE END PD */
 
@@ -364,8 +363,8 @@ void StartTOTask(void *argument)
  * @param argument: Not used
  * @retval None
  * 
- * @note 哨兵专用：累积底盘转动补偿
- *       计算公式：g_chassis_compensation += (-delta_yaw * 22.756f)
+ * @note 哨兵专用：计算底盘转动变化量（10ms周期，与CanTask同步）
+ *       计算公式：g_chassis_delta = -delta_yaw * 22.756f
  *       负号表示：底盘右转(Yaw增加)时，云台需左补偿
  */
 /* USER CODE END Header_StartCalTask */
@@ -382,14 +381,11 @@ void StartCalTask(void *argument)
 
         // 计算Yaw变化量
         CalTask_Yaw_Update(yaw);
-        float delta_yaw = CalTask_Yaw_GetDelta();  // 度/20ms
+        float delta_yaw = CalTask_Yaw_GetDelta();  // 度/10ms
         
         // 转换为编码器变化量（当前帧的变化量，不是累积！）
         const float ENCODER_SCALE = 22.756f;
         g_chassis_delta = -delta_yaw * ENCODER_SCALE;
-        
-        // 标记新数据可用
-        g_chassis_delta_ready = 1;
         
         // 调试输出（预览虚拟RC值 = -delta * gain）
         n++;
@@ -401,7 +397,7 @@ void StartCalTask(void *argument)
                    (int)(-g_chassis_delta * 3.0f));
             n = 0;
         }
-        osDelay(20);
+        osDelay(10);  // 10ms周期，与CanTask同步
     }
   /* USER CODE END StartCalTask */
 }
@@ -426,9 +422,6 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 
         // 禁止半传送中断
         __HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT);
-
-        // // 喂狗
-        // HAL_IWDG_Refresh(&hiwdg);
     }
 }
 
