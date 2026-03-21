@@ -41,7 +41,7 @@
 #include "Gimbal_Trigger.h"
 
 #include "CalTask_Yaw.h"
-#include "Chassis_Follow.h"
+// #include "Chassis_Follow.h"  // 已不再使用，底盘补偿直接通过全局变量传递
 // #include "Gimbal_SmallYaw.h"
 // #include "Gimbal_Pitch.h"
 // #include "Gimbal_Yaw.h"
@@ -80,6 +80,10 @@ int16_t now_SmallYaw_count = 0;
 
 extern int16_t virtual_big;
 extern int16_t virtual_small;
+extern float virtual_coord_debug;
+
+// 底盘补偿累积值（定义在Gimbal_Control.c）
+extern float g_chassis_compensation;
 
 /* USER CODE END PD */
 
@@ -357,6 +361,10 @@ void StartTOTask(void *argument)
  * @brief Function implementing the CalTask thread.
  * @param argument: Not used
  * @retval None
+ * 
+ * @note 哨兵专用：累积底盘转动补偿
+ *       计算公式：g_chassis_compensation += (-delta_yaw * 22.756f)
+ *       负号表示：底盘右转(Yaw增加)时，云台需左补偿
  */
 /* USER CODE END Header_StartCalTask */
 void StartCalTask(void *argument)
@@ -364,31 +372,31 @@ void StartCalTask(void *argument)
   /* USER CODE BEGIN StartCalTask */
     osDelay(50);
 
-    // 初始化底盘跟随模块
-    Chassis_Follow_Init(origin_BigYaw_count);
-
     int n = 0;
-    // float min_yaw = 0;
-    // float max_yaw = 0;
     /* Infinite loop */
     for (;;)
     {
-        float yaw = Can_BMI088_Data.Yaw;  //yaw的范围是-180~180，且在±180°处会有跳变
+        float yaw = Can_BMI088_Data.Yaw;
 
-        // if(yaw < min_yaw) min_yaw = yaw;
-        // if(yaw > max_yaw) max_yaw = yaw;
-
+        // 计算Yaw变化量
         CalTask_Yaw_Update(yaw);
+        float delta_yaw = CalTask_Yaw_GetDelta();  // 度/20ms
         
-        float delta = CalTask_Yaw_GetDelta();
-
-        // 更新底盘跟随（积分delta，输出补偿值）
-        Chassis_Follow_Update(delta);
+        // 转换为编码器值并累积
+        // 注意：这里是累积，不是赋值！
+        const float ENCODER_SCALE = 22.756f;
+        g_chassis_compensation += (-delta_yaw * ENCODER_SCALE);
+        
+        // 归一化到[0, 8192)，避免数值溢出
+        while (g_chassis_compensation >= 8192.0f) g_chassis_compensation -= 8192.0f;
+        while (g_chassis_compensation < 0) g_chassis_compensation += 8192.0f;
+        
+        // 调试输出
         n++;
         if (n > 20)
         {
-            // printf("delta = %d, min_yaw = %d, max_yaw = %d\n", (int)(delta), (int)(min_yaw), (int)(max_yaw));
-            printf("delta = %d\n", (int)(delta));
+            printf("delta_yaw = %d, compensation = %d\n", 
+                   (int)(delta_yaw), (int)(g_chassis_compensation));
             n = 0;
         }
         osDelay(20);

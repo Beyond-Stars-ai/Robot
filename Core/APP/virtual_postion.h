@@ -2,54 +2,108 @@
 #define __VIRTUAL_POSTION_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 //=========================== 外部变量 ===========================//
 
-// 机械中值（定义在freertos.c）
 extern int16_t origin_BigYaw_count;
 extern int16_t origin_SmallYaw_count;
 
-//=========================== 配置 ===========================//
+//=========================== 配置参数 ===========================//
 
-#define VIRTUAL_RC_CHANNEL      2       // 遥控器通道ch[2]
-#define VIRTUAL_RC_SENS         0.15f    // 虚拟坐标灵敏度
-#define VIRTUAL_RC_DEADZONE     50.0f   // 遥控器死区（防止微小抖动）
-// #define VIRTUAL_LIMIT           4000.0f // 虚拟坐标限幅（SmallYaw最大偏角对应编码值）
+#define VIRTUAL_RC_CHANNEL          2
+#define VIRTUAL_RC_SENS             0.15f
+#define VIRTUAL_RC_DEADZONE         50.0f
 
-//=========================== 虚拟坐标数据结构 ===========================//
+// 编码器参数
+#define ENCODER_MAX                 8192.0f
+#define ENCODER_HALF                4096.0f
+
+// SmallYaw限幅（40%量程）
+#define SMALL_YAW_LIMIT             3276.8f
+
+// 底盘跟随增益：chassis_delta -> 虚拟RC值的倍数
+// 底盘转30编码器值，虚拟RC = -30 * 3 = -90
+#define CHASSIS_FOLLOW_GAIN         3.0f
+
+//=========================== 数据结构 ===========================//
 
 typedef struct {
-    // 虚拟坐标（核心）
-    float virtual_coord;            // 总虚拟坐标（目标朝向总量）
-    float small_part;               // 小Yaw当前承担的偏量（持久化状态）
-    float big_yaw_vel;              // BigYaw 实时速度分量（用于平滑跟随，产生“摆尾”感）
+    // 配置
+    int16_t origin_big;
+    int16_t origin_small;
     
-    // 实际编码（输入）
-    float real_small_now;           // SmallYaw当前实际编码
-    float real_big_now;             // BigYaw当前实际编码
+    // 输入混合
+    int16_t rc_real;                // 真实遥控器值
+    int16_t rc_chassis;             // 底盘补偿虚拟RC值
+    int16_t rc_total;               // 总RC值 = rc_real + rc_chassis
     
-    // 目标编码（输出，供控制层使用）
-    float target_small;             // SmallYaw目标编码（计算结果）
-    float target_big;               // BigYaw目标编码（计算结果）
+    // 虚拟坐标（神龙摆尾）
+    float virtual_coord;
+    float small_part;
+    float big_yaw_vel;
     
-    // 状态（供观察）
-    float error_small;              // SmallYaw目标-当前误差
-    float error_big;                // BigYaw目标-当前误差
+    // 实际值
+    float real_small;
+    float real_big;
+    
+    // 目标值
+    float target_small;
+    float target_big;
+    
+    // 误差
+    float error_small;
+    float error_big;
     
 } Virtual_Yaw_State_t;
 
-//=========================== 接口 ===========================//
+//=========================== 接口函数 ===========================//
 
-// 初始化（开机时调用一次）
+/**
+ * @brief 初始化
+ */
 void Virtual_Yaw_Init(void);
 
-// 更新（控制周期调用）
-// 输入：遥控器值、当前实际编码
-// 输出：更新后的目标编码
-void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big);
+/**
+ * @brief 更新虚拟坐标（保留神龙摆尾）
+ * 
+ * 核心：底盘补偿delta直接转换为虚拟RC值
+ *       virtual_rc = -chassis_delta * CHASSIS_FOLLOW_GAIN
+ * 
+ * @param rc_value          真实遥控器值（ch[2]）
+ * @param chassis_delta     底盘转动变化量（编码器值/20ms）
+ *                          来自CalTask：chassis_delta = -delta_yaw * 22.756f
+ * @param real_small        SmallYaw实际编码
+ * @param real_big          BigYaw实际编码
+ */
+void Virtual_Yaw_Update(int16_t rc_value, float chassis_delta,
+                        float real_small, float real_big);
 
-// 获取目标（控制层调用）
+/**
+ * @brief 获取目标编码值
+ */
 float Virtual_Yaw_GetTarget_Small(void);
 float Virtual_Yaw_GetTarget_Big(void);
+
+/**
+ * @brief 获取误差
+ */
+float Virtual_Yaw_GetError_Small(void);
+float Virtual_Yaw_GetError_Big(void);
+
+/**
+ * @brief 获取完整状态
+ */
+const Virtual_Yaw_State_t* Virtual_Yaw_GetState(void);
+
+/**
+ * @brief 重置
+ */
+void Virtual_Yaw_Reset(void);
+
+/**
+ * @brief 设置底盘跟随增益（调试用）
+ */
+void Virtual_Yaw_SetChassisGain(float gain);
 
 #endif // __VIRTUAL_POSTION_H
