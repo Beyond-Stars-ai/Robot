@@ -39,6 +39,8 @@
 #include "Gimbal_CtoC.h"
 #include "Gimbal_Shoot.h"
 #include "Gimbal_Trigger.h"
+#include "Gimbal_PoseCalc.h"
+#include "BMI088.h"
 
 #include "CalTask_Yaw.h"
 // #include "Chassis_Follow.h"  // 已不再使用，底盘补偿直接通过全局变量传递
@@ -74,7 +76,7 @@ uint8_t receiveData_guard[14];
 RC_ctrl_t global_rc_control; // 全局遥控器数据
 extern BMI088_Init_typedef Can_BMI088_Data;
 
-int16_t origin_BigYaw_count = 4220;
+int16_t origin_BigYaw_count = 4033;
 int16_t origin_SmallYaw_count = 2375;
 
 int16_t now_BigYaw_count = 0;
@@ -83,11 +85,11 @@ int16_t now_SmallYaw_count = 0;
 extern int16_t virtual_big;
 extern int16_t virtual_small;
 extern float virtual_coord_debug;
-extern int16_t rc_chassis_debug;
+extern float target_angle_debug;
 
 // 底盘变化量（定义在Gimbal_Control.c）
 extern float g_chassis_delta;
-extern float g_chassis_delta_10ms;  // 10ms总delta（调试用）
+extern float g_chassis_delta_10ms;
 
 /* USER CODE END PD */
 
@@ -178,7 +180,7 @@ void MX_FREERTOS_Init(void) {
     memset(receiveData_guard, 0, sizeof(receiveData_guard));
 
     HAL_UARTEx_ReceiveToIdle_DMA(&huart3, receiveData, sizeof(receiveData));
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart6, receiveData_guard, sizeof(receiveData_guard));
+    // HAL_UARTEx_ReceiveToIdle_DMA(&huart6, receiveData_guard, sizeof(receiveData_guard));
 
   /* USER CODE END Init */
 
@@ -239,25 +241,60 @@ void MX_FREERTOS_Init(void) {
  * @brief  Function implementing the DebugTask thread.
  * @param  argument: Not used
  * @retval None
+ * 
+ * @note 校准模式：打印绝对角度，用于调整 BIGYAW_ANGLE_OFFSET
+ *       目标：底盘摆正、云台朝前时，BigYaw_Absolute.Yaw ≈ 0
  */
 /* USER CODE END Header_StartDebugTask */
 void StartDebugTask(void *argument)
 {
   /* USER CODE BEGIN StartDebugTask */
+    // 外部引用姿态计算数据
+    extern Gimbal_Absolute_Angle_t BigYaw_Absolute;
+    extern Gimbal_Absolute_Angle_t SmallYaw_Absolute;
+    extern float Chassis_IMU_Yaw;
+    extern BMI088_Init_typedef Can_BMI088_Data;
+    
     /* Infinite loop */
     for (;;)
     {
-        // printf("hello world\r\n");
         HAL_GPIO_TogglePin(LED_R_GPIO_Port, LED_R_Pin);
         now_BigYaw_count = Can2_M6020_MotorStatus[0].Angle;
         now_SmallYaw_count = Can2_M6020_MotorStatus[1].Angle;
-        // 调试打印：实际编码和虚拟坐标（使用外部变量，避免函数调用）
-        // printf("Yaw> RealS:%d RealB:%d | VirtualS:%d VirtualB:%d | RC:%d |\r\n",
-        //        now_SmallYaw_count,
-        //        now_BigYaw_count,
-        //        virtual_small,
-        //        virtual_big,
-        //        global_rc_control.rc.ch[2]); // 外部变量直接访问
+        
+        // ============ 校准打印（每500ms）============
+        static int calib_count = 0;
+        calib_count++;
+        if (calib_count >= 5) {  // 500ms打印一次
+            calib_count = 0;
+            
+            // 浮点转整数打印（避免printf不支持浮点）
+            int chassis_yaw_int = (int)(Chassis_IMU_Yaw * 100);
+            int chassis_yaw_raw = (int)(Can_BMI088_Data.Yaw * 100);
+            int bigyaw_int = (int)(BigYaw_Absolute.Yaw * 100);
+            int smallyaw_int = (int)(SmallYaw_Absolute.Yaw * 100);
+            
+            printf("\n========== 云台角度校准 ==========\n");
+            printf("底盘IMU Yaw:     %d.%02d (原始: %d.%02d)\n", 
+                   chassis_yaw_int / 100, abs(chassis_yaw_int % 100),
+                   chassis_yaw_raw / 100, abs(chassis_yaw_raw % 100));
+            printf("BigYaw 绝对角度:  %d.%02d (目标: 0)\n", 
+                   bigyaw_int / 100, abs(bigyaw_int % 100));
+            printf("SmallYaw 绝对角度:%d.%02d\n", 
+                   smallyaw_int / 100, abs(smallyaw_int % 100));
+            printf("BigYaw 编码器:    %d\n", now_BigYaw_count);
+            printf("SmallYaw 编码器:  %d\n", now_SmallYaw_count);
+            printf("================================\n");
+            
+            // 校准提示（用整数判断）
+            if (abs(bigyaw_int) > 1000) {  // > 10.00度
+                printf("[校准提示] BigYaw偏移%d.%02d度\n",
+                       bigyaw_int / 100, abs(bigyaw_int % 100));
+                printf("[建议] 新偏移 = 186 + %d.%02d\n",
+                       bigyaw_int / 100, abs(bigyaw_int % 100));
+            }
+        }
+        
         osDelay(100);
     }
   /* USER CODE END StartDebugTask */
@@ -396,8 +433,8 @@ void StartTOTask(void *argument)
  * @param argument: Not used
  * @retval None
  * 
- * @note 哨兵专用：1ms保持模式（更简单可靠）
- *       10ms读一次IMU，保持该值10ms，不插值避免累积误差
+ * @note 哨兵专用：1ms周期，10ms读取IMU，平均分配到10ms
+ *       这种方式更平滑，避免插值累积误差
  */
 /* USER CODE END Header_StartCalTask */
 void StartCalTask(void *argument)
@@ -602,7 +639,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 int _write(int fd, char *ptr, int len)
 {
-    HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart6, (uint8_t *)ptr, len, HAL_MAX_DELAY);
     return len;
 }
 

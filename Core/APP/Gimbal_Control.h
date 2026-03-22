@@ -15,25 +15,16 @@ extern M6020_Motor Can2_M6020_MotorStatus[7];
 
 //=========================== 全局变量 ===========================//
 
-/**
- * @brief 底盘转动变化量（编码器值/1ms）
- * 
- * CalTask每1ms更新（10ms平均分成10份）：
- *   g_chassis_delta = (-delta_yaw * 22.756f) / 10
- * 
- * @note 与CanTask同步（1ms周期）
- */
-extern float g_chassis_delta;
-extern float g_chassis_delta_10ms;  // 10ms总delta
+extern float g_chassis_delta;         // 1ms底盘变化量
+extern float g_chassis_delta_10ms;    // 10ms总变化量（CalTask用）
 
 //=========================== PID变量 ===========================//
 
 extern PID_PositionInitTypedef Pitch_PositionPID;
 extern PID_PositionInitTypedef Pitch_SpeedPID;
-extern PID_PositionInitTypedef SmallYaw_PositionPID;
-extern PID_PositionInitTypedef SmallYaw_SpeedPID;
-extern PID_PositionInitTypedef BigYaw_PositionPID;
+extern PID_PositionInitTypedef BigYaw_AnglePID;
 extern PID_PositionInitTypedef BigYaw_SpeedPID;
+extern PID_PositionInitTypedef SmallYaw_SpeedPID;
 
 //=========================== 配置参数 ===========================//
 
@@ -53,9 +44,8 @@ void Gimbal_Yaw_Control(void);
 // PID调试
 void Gimbal_Pitch_SetPosPID(float kp, float ki, float kd);
 void Gimbal_Pitch_SetSpeedPID(float kp, float ki, float kd);
-void Gimbal_SmallYaw_SetPosPID(float kp, float ki, float kd);
-void Gimbal_SmallYaw_SetSpeedPID(float kp, float ki, float kd);
-void Gimbal_BigYaw_SetPosPID(float kp, float ki, float kd);
+void Gimbal_BigYaw_SetAnglePID(float kp, float ki, float kd);
 void Gimbal_BigYaw_SetSpeedPID(float kp, float ki, float kd);
+void Gimbal_SmallYaw_SetSpeedPID(float kp, float ki, float kd);
 
 #endif // __GIMBAL_CONTROL_H
