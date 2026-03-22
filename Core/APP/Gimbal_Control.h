@@ -22,8 +22,9 @@ extern float g_chassis_delta_10ms;    // 10ms总变化量（CalTask用）
 
 extern PID_PositionInitTypedef Pitch_PositionPID;
 extern PID_PositionInitTypedef Pitch_SpeedPID;
-extern PID_PositionInitTypedef BigYaw_AnglePID;
+extern PID_PositionInitTypedef BigYaw_PositionPID;  // 新增：BigYaw位置环
 extern PID_PositionInitTypedef BigYaw_SpeedPID;
+extern PID_PositionInitTypedef SmallYaw_PositionPID; // 新增：SmallYaw位置环
 extern PID_PositionInitTypedef SmallYaw_SpeedPID;
 
 //=========================== 配置参数 ===========================//
@@ -44,8 +45,9 @@ void Gimbal_Yaw_Control(void);
 // PID调试
 void Gimbal_Pitch_SetPosPID(float kp, float ki, float kd);
 void Gimbal_Pitch_SetSpeedPID(float kp, float ki, float kd);
-void Gimbal_BigYaw_SetAnglePID(float kp, float ki, float kd);
+void Gimbal_BigYaw_SetPosPID(float kp, float ki, float kd);      // BigYaw位置环
 void Gimbal_BigYaw_SetSpeedPID(float kp, float ki, float kd);
+void Gimbal_SmallYaw_SetPosPID(float kp, float ki, float kd);    // SmallYaw位置环
 void Gimbal_SmallYaw_SetSpeedPID(float kp, float ki, float kd);
 
 #endif // __GIMBAL_CONTROL_H

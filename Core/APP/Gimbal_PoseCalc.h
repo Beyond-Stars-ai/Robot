@@ -8,7 +8,7 @@
 //=========================== 机械偏移配置 ===========================//
 // 根据实际机械结构调整！
 #define BIGYAW_ANGLE_OFFSET     8.0f        // 大Yaw机械中值偏移（度）
-#define SMALLYAW_ANGLE_OFFSET   -106.5f     // 小Yaw机械中值偏移（度）
+// 注意：SmallYaw 在哨兵模式下锁定编码器值，不使用角度偏移
 
 //=========================== 数据类型 ===========================//
 
@@ -25,8 +25,8 @@ typedef struct {
 
 //=========================== 外部变量 ===========================//
 
-extern Gimbal_Absolute_Angle_t BigYaw_Absolute;     // 大Yaw绝对角度
-extern Gimbal_Absolute_Angle_t SmallYaw_Absolute;   // 小Yaw绝对角度
+extern Gimbal_Absolute_Angle_t BigYaw_Absolute;     // 大Yaw绝对角度（用于控制）
+extern Gimbal_Absolute_Angle_t SmallYaw_Absolute;   // 小Yaw绝对角度（调试用，哨兵模式下不用于控制）
 extern float Chassis_IMU_Yaw;                       // 底盘IMU Yaw（取反后）
 
 //=========================== 接口函数 ===========================//

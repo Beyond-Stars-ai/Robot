@@ -40,9 +40,9 @@ void Gimbal_PoseCalc_Update(void)
     // 取反（坐标系对齐）
     Chassis_IMU_Yaw = -chassis_yaw;
     
-    //---------- 2. 获取电机编码器角度（转换为度）----------
+    //---------- 2. 获取BigYaw电机编码器角度（SmallYaw无需计算）----------
     float bigyaw_motor_angle = Encoder_To_Angle(Can2_M6020_MotorStatus[0].Angle);
-    float smallyaw_motor_angle = Encoder_To_Angle(Can2_M6020_MotorStatus[1].Angle);
+    // 注意：SmallYaw 在哨兵模式下锁定编码器，不需要角度计算
     
     //---------- 3. 计算大Yaw绝对角度（蓝图核心公式）----------
     // BigYaw绝对角度 = -(底盘IMU_Yaw + 电机编码器角度 + 偏移)
@@ -58,19 +58,4 @@ void Gimbal_PoseCalc_Update(void)
     if (diff > 180.0f) BigYaw_Absolute.r--;
     else if (diff < -180.0f) BigYaw_Absolute.r++;
     last_bigyaw = BigYaw_Absolute.Yaw;
-    
-    //---------- 4. 计算小Yaw绝对角度 ----------
-    // SmallYaw绝对角度 = BigYaw绝对角度 + 小Yaw电机角度 + 偏移
-    float smallyaw_abs = BigYaw_Absolute.Yaw + smallyaw_motor_angle + SMALLYAW_ANGLE_OFFSET;
-    
-    // 归一化
-    SmallYaw_Absolute.Yaw = Angle_Normalize(smallyaw_abs);
-    SmallYaw_Absolute.Raw_Yaw = smallyaw_abs;
-    
-    // 计算圈数
-    static float last_smallyaw = 0;
-    diff = SmallYaw_Absolute.Yaw - last_smallyaw;
-    if (diff > 180.0f) SmallYaw_Absolute.r--;
-    else if (diff < -180.0f) SmallYaw_Absolute.r++;
-    last_smallyaw = SmallYaw_Absolute.Yaw;
 }
