@@ -16,9 +16,10 @@ PID_PositionInitTypedef BigYaw_SpeedPID;
 /**
  * @brief 底盘转动变化量（编码器值/1ms）
  * 
- * CalTask每1ms更新（插值后）
+ * CalTask每1ms更新（10ms平均分成10份）
  */
 float g_chassis_delta = 0.0f;
+float g_chassis_delta_10ms = 0.0f;  // 10ms总delta（调试用）
 
 //=========================== 初始化 ===========================//
 

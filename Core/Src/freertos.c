@@ -87,6 +87,7 @@ extern int16_t rc_chassis_debug;
 
 // 底盘变化量（定义在Gimbal_Control.c）
 extern float g_chassis_delta;
+extern float g_chassis_delta_10ms;  // 10ms总delta（调试用）
 
 /* USER CODE END PD */
 
@@ -337,7 +338,7 @@ void StartCanTask(void *argument)
     Gimbal_Control_Init();
     Gimbal_Shoot_Init();
     Gimbal_Trigger_Init();
-    /* Infinite loop - 1ms控制周期 */
+    /* Infinite loop */
     for (;;)
     {
         Gimbal_CtoC_Remote(); 
@@ -395,8 +396,8 @@ void StartTOTask(void *argument)
  * @param argument: Not used
  * @retval None
  * 
- * @note 哨兵专用：1ms插值，BMI088 100Hz -> 1000Hz
- *       10ms读一次IMU，中间9ms线性插值
+ * @note 哨兵专用：1ms保持模式（更简单可靠）
+ *       10ms读一次IMU，保持该值10ms，不插值避免累积误差
  */
 /* USER CODE END Header_StartCalTask */
 void StartCalTask(void *argument)
@@ -404,72 +405,41 @@ void StartCalTask(void *argument)
   /* USER CODE BEGIN StartCalTask */
     osDelay(50);
 
-    // 插值状态
-    static float last_yaw = 0;
-    static float target_yaw = 0;
-    static float velocity = 0;
-    static float current_interp_yaw = 0;
-    static int interp_count = 0;
-    static uint8_t first_run = 1;
-    
-    int n = 0;
+    float last_yaw = 0;
+    uint8_t first_run = 1;
+    int count = 0;
     const float ENCODER_SCALE = 22.756f;
     
     /* Infinite loop */
     for (;;)
     {
-        // 每10ms(10次循环)读一次IMU
-        if (interp_count == 0)
+        // 每10ms读一次IMU
+        if (count == 0)
         {
             float yaw = Can_BMI088_Data.Yaw;
-            CalTask_Yaw_Update(yaw);
-            float delta_yaw = CalTask_Yaw_GetDelta();
             
-            if (first_run) {
-                last_yaw = yaw;
-                target_yaw = yaw;
-                current_interp_yaw = yaw;
-                first_run = 0;
-            } else {
-                last_yaw = current_interp_yaw;  // 从当前插值位置继续
-                target_yaw = yaw;
-                // 计算速度（度/秒）
-                velocity = delta_yaw / 0.01f;  // 10ms = 0.01s
+            if (!first_run) {
+                // 计算真实的10ms delta
+                float delta_yaw = yaw - last_yaw;
+                // 处理环绕
+                if (delta_yaw > 180.0f) delta_yaw -= 360.0f;
+                if (delta_yaw < -180.0f) delta_yaw += 360.0f;
+                
+                // 直接保存10ms的总delta，CalTask不分帧
+                // CanTask每1ms取1/10，这样不会累积插值误差
+                g_chassis_delta_10ms = -delta_yaw * ENCODER_SCALE;
             }
-        }
-        
-        // 线性插值: yaw = last_yaw + velocity * t
-        // t = interp_count * 0.001f (0~0.009s)
-        float t = interp_count * 0.001f;
-        float interp_yaw = last_yaw + velocity * t;
-        
-        // 计算delta（相对于上一帧）
-        static float last_out_yaw = 0;
-        if (first_run == 0) {
-            float delta_yaw = interp_yaw - last_out_yaw;
-            // 处理环绕
-            if (delta_yaw > 180.0f) delta_yaw -= 360.0f;
-            if (delta_yaw < -180.0f) delta_yaw += 360.0f;
             
-            // 转换为编码器值（1ms的delta）
-            g_chassis_delta = -delta_yaw * ENCODER_SCALE;
-            last_out_yaw = interp_yaw;
-        }
-        current_interp_yaw = interp_yaw;
-        
-        // 计数器
-        interp_count++;
-        if (interp_count >= 10) {
-            interp_count = 0;
+            last_yaw = yaw;
+            first_run = 0;
         }
         
-        // 调试输出
-        n++;
-        if (n > 100)  // 100ms输出一次
-        {
-            printf("vel=%d delta=%d\n", (int)(velocity), (int)(g_chassis_delta));
-            n = 0;
-        }
+        // 每1ms输出：把10ms的delta分成10份，保持均匀
+        // 注意：这里直接除以10，而不是插值
+        g_chassis_delta = g_chassis_delta_10ms / 10.0f;
+        
+        count++;
+        if (count >= 10) count = 0;
         
         osDelay(1);  // 1ms周期
     }

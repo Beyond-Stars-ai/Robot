@@ -23,10 +23,10 @@ extern int16_t origin_SmallYaw_count;
 #define SMALL_YAW_LIMIT             3276.8f
 
 // 底盘跟随增益：chassis_delta -> 虚拟RC值的倍数
-// 1ms适配：delta是10ms的1/10，gain需要×10
-// 底盘1ms转3编码器 -> 虚拟RC = -3 * 60 = -180（等效原来-30*6）
-// #define CHASSIS_FOLLOW_GAIN         60.0f  // 1ms：原来是6.0
-#define CHASSIS_FOLLOW_GAIN         30.0f  // 1ms：原来是6.0
+// 1ms平均分策略：CalTask把10ms delta除以10，每1ms给一份
+// 所以gain保持6.0，10ms累积效果与原来相同，但更平滑
+// 如果仍感觉太灵敏，请尝试减小到 3.0f 或 4.0f
+#define CHASSIS_FOLLOW_GAIN         3.0f  // 建议先试试6.0，如果太灵敏改3.0
 
 
 //=========================== 数据结构 ===========================//

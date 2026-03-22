@@ -16,14 +16,15 @@ extern M6020_Motor Can2_M6020_MotorStatus[7];
 //=========================== 全局变量 ===========================//
 
 /**
- * @brief 底盘转动变化量（编码器值/10ms）
+ * @brief 底盘转动变化量（编码器值/1ms）
  * 
- * CalTask每10ms更新：
- *   g_chassis_delta = -delta_yaw * 22.756f
+ * CalTask每1ms更新（10ms平均分成10份）：
+ *   g_chassis_delta = (-delta_yaw * 22.756f) / 10
  * 
- * @note 与CanTask同步（10ms周期），直接读取使用
+ * @note 与CanTask同步（1ms周期）
  */
 extern float g_chassis_delta;
+extern float g_chassis_delta_10ms;  // 10ms总delta
 
 //=========================== PID变量 ===========================//
 
