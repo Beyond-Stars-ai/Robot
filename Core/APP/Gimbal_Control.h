@@ -13,11 +13,6 @@ extern RC_ctrl_t global_rc_control;
 extern M6020_Motor Can1_M6020_MotorStatus[7];
 extern M6020_Motor Can2_M6020_MotorStatus[7];
 
-//=========================== 全局变量 ===========================//
-
-extern float g_chassis_delta;         // 1ms底盘变化量
-extern float g_chassis_delta_10ms;    // 10ms总变化量（CalTask用）
-
 //=========================== PID变量 ===========================//
 
 extern PID_PositionInitTypedef Pitch_PositionPID;

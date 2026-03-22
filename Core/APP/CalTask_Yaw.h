@@ -5,15 +5,15 @@
 
 //=========================== 数据结构 ===========================//
 //
-// CalTask专用：20ms周期计算Yaw变化量
+// CalTask专用：10ms周期计算Yaw变化量
 // 输入：当前Yaw角度
-// 输出：20ms间隔的变化量（后-前）
+// 输出：10ms间隔的变化量（后-前）
 //
 //===========================
 
 typedef struct {
     float yaw_now;              // 当前Yaw值（本次）
-    float yaw_prev;             // 上一次Yaw值（20ms前）
+    float yaw_prev;             // 上一次Yaw值（10ms前）
     float delta_yaw;            // 变化量 = yaw_now - yaw_prev（处理±180°跨越）
     float angular_velocity;     // 角速度（度/秒）
     uint8_t data_valid;         // 数据有效标志（1=已计算过差值）
@@ -22,11 +22,11 @@ typedef struct {
 //=========================== 接口函数 ===========================//
 
 /**
- * @brief 更新Yaw数据并计算变化量（在20ms周期的CalTask中调用）
+ * @brief 更新Yaw数据并计算变化量（在10ms周期的CalTask中调用）
  * @param yaw_now 当前Yaw角度（度，-180~180）
  * @return 更新后的数据结构
  * 
- * @note 调用周期：20ms（与CalTask同步）
+ * @note 调用周期：10ms（与CalTask同步）
  * @note 首次调用会记录初始值，不计算差值
  * 
  * @example
@@ -43,14 +43,14 @@ typedef struct {
  *               // 传递给Chassis_Follow（后续步骤）
  *               // ChassisFollow_UpdateDelta(CalTask_Yaw_GetDelta());
  *               
- *               osDelay(20);
+ *               osDelay(10);
  *           }
  *       }
  */
 CalTask_YawData_t CalTask_Yaw_Update(float yaw_now);
 
 /**
- * @brief 获取Yaw变化量（20ms间隔）
+ * @brief 获取Yaw变化量（10ms间隔）
  * @return 变化量（度），正值表示顺时针，负值表示逆时针
  */
 float CalTask_Yaw_GetDelta(void);
@@ -68,7 +68,7 @@ float CalTask_Yaw_GetAngularVelocity(void);
 float CalTask_Yaw_GetNow(void);
 
 /**
- * @brief 获取上一次Yaw值（20ms前）
+ * @brief 获取上一次Yaw值（10ms前）
  * @return 上一次Yaw角度
  */
 float CalTask_Yaw_GetPrev(void);

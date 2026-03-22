@@ -16,11 +16,6 @@ PID_PositionInitTypedef BigYaw_SpeedPID;
 PID_PositionInitTypedef SmallYaw_PositionPID;
 PID_PositionInitTypedef SmallYaw_SpeedPID;
 
-//=========================== 全局变量 ===========================//
-
-float g_chassis_delta = 0.0f;        // 1ms底盘变化量（CalTask计算）
-float g_chassis_delta_10ms = 0.0f;   // 10ms总变化量
-
 //=========================== 初始化 ===========================//
 
 void Gimbal_Control_Init(void)
@@ -77,7 +72,7 @@ void Gimbal_Pitch_Control(void)
     Motor_6020_Voltage1(0, (int16_t)Pitch_SpeedPID.OUT, 0, 0, &hcan1);
 }
 
-//=========================== Yaw控制（编码器 + g_chassis_delta补偿）===========================//
+//=========================== Yaw控制 ===========================//
 
 void Gimbal_Yaw_Control(void)
 {
@@ -87,11 +82,8 @@ void Gimbal_Yaw_Control(void)
     float real_small_speed = (float)Can2_M6020_MotorStatus[1].Speed;
     float real_big_speed = (float)Can2_M6020_MotorStatus[0].Speed;
     
-    // 更新目标（使用g_chassis_delta进行底盘补偿）
-    Virtual_Yaw_Update(global_rc_control.rc.ch[2], 
-                       g_chassis_delta,  // CalTask计算的底盘补偿
-                       real_small, 
-                       real_big);
+    // 更新目标
+    Virtual_Yaw_Update(global_rc_control.rc.ch[2], real_small, real_big);
     
     // 获取目标编码器值
     float target_small = Virtual_Yaw_GetTarget_Small();

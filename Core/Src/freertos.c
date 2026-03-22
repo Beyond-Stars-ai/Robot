@@ -87,10 +87,6 @@ extern int16_t virtual_small;
 extern float virtual_coord_debug;
 extern float target_angle_debug;
 
-// 底盘变化量（定义在Gimbal_Control.c）
-extern float g_chassis_delta;
-extern float g_chassis_delta_10ms;
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -441,43 +437,37 @@ void StartCalTask(void *argument)
 {
   /* USER CODE BEGIN StartCalTask */
     osDelay(50);
-
-    float last_yaw = 0;
+    
+    float last_chassis_yaw = 0.0f;
     uint8_t first_run = 1;
     int count = 0;
-    const float ENCODER_SCALE = 22.756f;
     
     /* Infinite loop */
     for (;;)
     {
-        // 每10ms读一次IMU
+        // 每10ms采样一次IMU
         if (count == 0)
         {
-            float yaw = Can_BMI088_Data.Yaw;
+            float chassis_yaw = Can_BMI088_Data.Yaw;
+            uint16_t bigyaw_encoder = Can2_M6020_MotorStatus[0].Angle;
             
+            // 计算delta_yaw（这次 - 上次），处理环绕
+            float delta_yaw = 0.0f;
             if (!first_run) {
-                // 计算真实的10ms delta
-                float delta_yaw = yaw - last_yaw;
-                // 处理环绕
+                delta_yaw = chassis_yaw - last_chassis_yaw;
                 if (delta_yaw > 180.0f) delta_yaw -= 360.0f;
                 if (delta_yaw < -180.0f) delta_yaw += 360.0f;
-                
-                // 直接保存10ms的总delta，CalTask不分帧
-                // CanTask每1ms取1/10，这样不会累积插值误差
-                g_chassis_delta_10ms = -delta_yaw * ENCODER_SCALE;
             }
             
-            last_yaw = yaw;
+            // 更新绝对角度（蓝图公式）
+            Gimbal_PoseCalc_Update(chassis_yaw, bigyaw_encoder, delta_yaw, first_run);
+            
+            last_chassis_yaw = chassis_yaw;
             first_run = 0;
         }
         
-        // 每1ms输出：把10ms的delta分成10份，保持均匀
-        // 注意：这里直接除以10，而不是插值
-        g_chassis_delta = g_chassis_delta_10ms / 10.0f;
-        
         count++;
         if (count >= 10) count = 0;
-        
         osDelay(1);  // 1ms周期
     }
   /* USER CODE END StartCalTask */

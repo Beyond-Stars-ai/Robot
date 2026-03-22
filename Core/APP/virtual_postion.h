@@ -39,14 +39,12 @@ typedef struct {
 void Virtual_Yaw_Init(void);
 
 /**
- * @brief 更新目标（支持底盘补偿）
+ * @brief 更新目标
  * @param rc_value 遥控器值
- * @param chassis_delta 底盘补偿变化量（编码器值/1ms，CalTask计算）
  * @param real_small SmallYaw实际编码
  * @param real_big BigYaw实际编码
  */
-void Virtual_Yaw_Update(int16_t rc_value, float chassis_delta,
-                        float real_small, float real_big);
+void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big);
 
 /**
  * @brief 直接设置目标角度（用于自瞄等）

@@ -31,18 +31,20 @@ void Gimbal_PoseCalc_Init(void)
 
 //=========================== 核心姿态计算 ===========================//
 
-void Gimbal_PoseCalc_Update(void)
+void Gimbal_PoseCalc_Update(float chassis_yaw, uint16_t bigyaw_encoder,
+                            float delta_yaw, uint8_t first_run)
 {
-    //---------- 1. 获取底盘IMU数据（通过CAN从底盘接收）----------
-    // 注意：Can_BMI088_Data需要在其他地方定义和更新
-    float chassis_yaw = Can_BMI088_Data.Yaw;
+    (void)first_run;  // 保留用于未来扩展
     
+    //---------- 1. 处理底盘IMU数据（CalTask采样传入）----------
     // 取反（坐标系对齐）
     Chassis_IMU_Yaw = -chassis_yaw;
     
-    //---------- 2. 获取BigYaw电机编码器角度（SmallYaw无需计算）----------
-    float bigyaw_motor_angle = Encoder_To_Angle(Can2_M6020_MotorStatus[0].Angle);
-    // 注意：SmallYaw 在哨兵模式下锁定编码器，不需要角度计算
+    // 保存delta_yaw（用于调试或平滑）
+    BigYaw_Absolute.delta_yaw = delta_yaw;  // 度/10ms
+    
+    //---------- 2. 处理BigYaw电机编码器角度 ----------
+    float bigyaw_motor_angle = Encoder_To_Angle(bigyaw_encoder);
     
     //---------- 3. 计算大Yaw绝对角度（蓝图核心公式）----------
     // BigYaw绝对角度 = -(底盘IMU_Yaw + 电机编码器角度 + 偏移)

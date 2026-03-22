@@ -35,12 +35,10 @@ void Virtual_Yaw_Init(void)
 
 //=========================== 核心更新函数 ===========================//
 
-void Virtual_Yaw_Update(int16_t rc_value, float chassis_delta,
-                        float real_small, float real_big)
+void Virtual_Yaw_Update(int16_t rc_value, float real_small, float real_big)
 {
-    (void)chassis_delta;  // 当前简化版不使用，保留接口
     (void)real_small;     // 未使用
-    (void)real_big;       // 未使用
+    (void)real_big;       // 未使用（使用BigYaw_Absolute绝对角度）
     
     //---------- 1. 遥控器输入控制目标角度 ----------
     if (abs(rc_value) >= (int16_t)VIRTUAL_RC_DEADZONE) {

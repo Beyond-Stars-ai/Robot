@@ -21,6 +21,7 @@ typedef struct {
     
     // 原始数据（调试用）
     float Raw_Yaw;      // 原始Yaw
+    float delta_yaw;    // 底盘Yaw变化量（度/10ms，这次-上次）
     int64_t r;          // 转过圈数（编码器跨圈计数）
 } Gimbal_Absolute_Angle_t;
 
@@ -43,7 +44,15 @@ void Gimbal_PoseCalc_Init(void);
  *        BigYaw绝对角度 = -(底盘IMU_Yaw + 电机编码器角度 + 偏移)
  *        SmallYaw绝对角度 = BigYaw绝对角度 + 电机相对角度 + 偏移
  */
-void Gimbal_PoseCalc_Update(void);
+/**
+ * @brief 更新姿态计算（采样与计算分离）
+ * @param chassis_yaw 底盘IMU的Yaw角（度，CalTask采样）
+ * @param bigyaw_encoder BigYaw电机编码器原始值（0-8191）
+ * @param delta_yaw 底盘Yaw变化量（度/10ms，这次-上次）
+ * @param first_run 首次运行标志（跳过delta计算）
+ */
+void Gimbal_PoseCalc_Update(float chassis_yaw, uint16_t bigyaw_encoder, 
+                            float delta_yaw, uint8_t first_run);
 
 /**
  * @brief 编码器值转角度（度）
